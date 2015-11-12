@@ -1,58 +1,56 @@
 ---
-title: "Vignette Title"
+title: "Splitting A Single Beta Distribution into Multiple Dirichlet Distributions"
 author: "Rob Schick, PhD"
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+output: 
+  rmarkdown::html_vignette:
+    fig_caption: yes
 vignette: >
-  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteIndexEntry{Splitting A Single Beta Distribution into Multiple Dirichlet Distributions}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-Vignettes are long form documentation commonly included in packages. Because they are part of the distribution of the package, they need to be as compact as possible. The `html_vignette` output type provides a custom style sheet (and tweaks some options) to ensure that the resulting html is as small as possible. The `html_vignette` format:
+Here I show how to take answers from one expert that came in the form of a Beta distribution via the shiny app ([example interface there](https://robschick.shinyapps.io/question13)). There they highlighted how many whales make a transition, as well as their certainty around that answer. In the link provided above, the experts were asked to provide answers for three transitions: 
 
-- Never uses retina figures
-- Has a smaller default figure size
-- Uses a custom CSS stylesheet instead of the default Twitter Bootstrap style
+1. Animals remaining in the MIDA
+2. Animals moving south from MIDA to SEUS
+3. Animals moving from "Northern" regions into MIDA
 
-## Vignette Info
+In this last question we lump 7 different regions north of the MIDA into one. This was done to reduce the congitive load on the experts. However, because the model from Schick et al. (2013) operates with 9 geographic regions, we need to convert from the single Beta back to 7 Beta distributions, which we will then use in the Dirichlet distribution that serves as the prior for the movement transitions. This vignette describes this process.
 
-Note the various macros within the `vignette` section of the metadata block above. These are required in order to instruct R how to build the vignette. Note that you should change the `title` field and the `\VignetteIndexEntry` to match the title of your vignette.
+## Necessary Background
+Let's say we three possible areas and we ask for all possible transitions between and among these areas. If we do this with a slider, then we can easily generate a full Dirichlet distribution. For example, from area 1 to area 2, 20 out of 100 whales move. From area 1 to area 1, 25 out of 100 whales move. Necessarily, this means that 55 whales move from area 1 to area 3. 
 
-## Styles
+The weight a user assigns to these parameters controls the variance in the individual Dirichlet parameters, i.e. $Dir(0.2, 0.25, 0.55)$ is a very different distribution from $Dir(20, 25, 55)$, that is while their means are the same, the variance is very different:
 
-The `html_vignette` template includes a basic CSS theme. To override this theme you can specify your own CSS in the document metadata as follows:
+```{r, echo=FALSE}
+library(gtools)
+library(reshape2)
+library(ggplot2)
+d1 <- rdirichlet(1000, c(0.2, 0.25, 0.55))
+d2 <- rdirichlet(1000, c(20, 25, 55))
+d1long <- melt(d1)
+d2long <- melt(d2)
+p <- ggplot(d1long, aes(value, group = Var2))+
+  geom_histogram()+
+  facet_grid(Var2 ~ .)+
+  xlim(0, 1)+
+  ggtitle('Dir(0.2, 0.25, 0.55)')
 
-    output: 
-      rmarkdown::html_vignette:
-        css: mystyles.css
+p2 <- ggplot(d2long, aes(value, group = Var2))+
+  geom_histogram()+
+  facet_grid(Var2 ~ .)+
+  xlim(0, 1)+
+  ggtitle('Dir(20, 25, 55)')
 
-## Figures
+p
+p2
 
-The figure sizes have been customised so that you can easily put two images side-by-side. 
-
-```{r, fig.show='hold'}
-plot(1:10)
-plot(10:1)
 ```
 
-You can enable figure captions by `fig_caption: yes` in YAML:
 
-    output:
-      rmarkdown::html_vignette:
-        fig_caption: yes
+When we set up the shiny interface to ask the questions about the transitions, we combined several possible transitions into one.
 
-Then you can use the chunk option `fig.cap = "Your figure caption."` in **knitr**.
 
-## More Examples
 
-You can write math expressions, e.g. $Y = X\beta + \epsilon$, footnotes^[A footnote here.], and tables, e.g. using `knitr::kable()`.
-
-```{r, echo=FALSE, results='asis'}
-knitr::kable(head(mtcars, 10))
-```
-
-Also a quote using `>`:
-
-> "He who gives up [code] safety for [code] speed deserves neither."
-([via](https://twitter.com/hadleywickham/status/504368538874703872))
