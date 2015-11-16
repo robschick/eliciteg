@@ -1,6 +1,6 @@
 ---
 title: "Splitting A Single Beta Distribution into Multiple Dirichlet Distributions"
-author: "Rob Schick, PhD"
+author: "Rob Schick, PhD and Michail Papathomas, PhD"
 date: "`r Sys.Date()`"
 output: 
   rmarkdown::html_vignette:
@@ -11,7 +11,7 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-Here I show how to take answers from one expert that came in the form of a Beta distribution via the shiny app ([example interface there](https://robschick.shinyapps.io/question13)). There they highlighted how many whales make a transition, as well as their certainty around that answer. In the link provided above, the experts were asked to provide answers for three transitions: 
+Here I show how to take answers from one expert that came in the form of a Beta distribution via the shiny app ([example interface here](https://robschick.shinyapps.io/question13)). There they highlighted how many whales make a transition, as well as their certainty around that answer. In the link provided above, the experts were asked to provide answers for three transitions: 
 
 1. Animals remaining in the MIDA
 2. Animals moving south from MIDA to SEUS
@@ -50,7 +50,73 @@ p2
 ```
 
 
-When we set up the shiny interface to ask the questions about the transitions, we combined several possible transitions into one.
+When we set up the shiny interface to ask the questions about the transitions, we combined several possible transitions into one. Now that we've done that, we need to reverse engineer it, and make the values from the one distribution match up to the values from many Dirichlet's. 
+
+We'll start with a toy example of a Beta distribution with parameters `Beta(10, 30)` which we want to turn into 5 Beta distributions with parameters `Be(a, b)`. 
+
+We start with factoring them down into the 5 distributions as follows:
+
+$$ \mu = \frac{a}{a+b} = \frac{10}{10+30} \cdot \frac{1}{5} = 0.05 $$ and 
+
+$$ a+b = \frac{40}{5} $$ which yields
+
+$$ b = 8 - a $$
+
+Finally, 
+$$ a = 2, b = 6. $$
+
+Our toy example, then included 3 transitions to be turned into 7 transitions - the last 5 of which are identical. Say we have three distributions: `Be(4, 20)`, `Be(15, 10)`, and `Be(10, 30)`; after dividing, those will translate to:
+
+1. `Be(4, 20)`
+2. `Be(15, 10)`
+3. `Be(2, 6)`
+4. `Be(2, 6)`
+5. `Be(2, 6)`
+6. `Be(2, 6)`
+7. `Be(2, 6)`
 
 
+## Real Worked Example 
+### Partitioning up the Beta Distributions
+Now let's look at taking some real answers for one of the questions above, and turning it into priors for the movement analysis. Looking at one person's answers:
 
+```{r, echo=FALSE, results='asis'}
+df <- data.frame(question = 13, gender = 'MALE', rawConf = 4, scaleConf = 19.8181, mida2mida = 40, mida2seus = 10, mida2northern = 50)
+knitr::kable(df, caption = 'Table 1. Example answers from one expert for one question in the expert elicitation conducted in June 2015.')
+```
+
+Let's explain these variables and values just a bit for clarification: 
+
+* `rawConf` refers to the value the person put in using the slider (range 1-100).
+* `scaleConf` refers to the nimber from `rawConf` being rescaled to a new range (1-622), because this was the range of weights we used in the original analysis
+* `mida2mida` is the number of whales (out of 100) that will remain in the MIDA during the next time period
+* `mida2seus` is the number of whales (out of 100) that will move to the SEUS during the next time period
+* `mida2northern` is the number of whales (out of 100) that will move to the northern regions during the next time period; this is the variable that needs to be split into 7 new beta distributions
+
+How these values then translate into parameters for beta distribution is as follows. We used the following parameterisation: $\alpha = n \times m_1$ and $\beta = n - n \times m_1$, where $n$ = `scaleConf`, and $m_1$ = `mida2mida / 100`. For the first transtion this yields, $\alpha = 19.8181 \times 40 / 100$, or `r 19.8181 * 40 / 100`, and $\beta = 19.8181 - 19.8181 \times 40 / 100$, or `r 19.8181 - 19.8181 * (40/100)`. So for this Beta distribution we would have `Be(7.93, 11.89)`.
+
+For the second transition, we'll repeat with the appropriate substitution for the new answers: $\alpha = 19.8181 \times 10 / 100$, or `r 19.8181 * 10 / 100`, and $\beta = 19.8181 - 19.8181 \times 10 / 100$, or `r 19.8181 - 19.8181 * (10/100)`. So for this Beta distribution we would have `Be(1.98, 17.84)`.
+
+For the last transition, we need to calculate the Beta distribution parameters, and then divide by 7. The distribution for the transition is: $\alpha = 19.8181 \times 50 / 100$, or `r 19.8181 * 50 / 100`, and $\beta = 19.8181 - 19.8181 \times 50 / 100$, or `r 19.8181 - 19.8181 * (50/100)`. So for this Beta distribution we would have `Be(9.91, 9.91)`. However, we need to then divide this by 7 to get the final distributions. This would yield `Be(1.41, 1.41)` for each of these 7 transitions. 
+
+The summary table of all these transitions for the Beta parameters is now:
+
+```{r, echo=FALSE, results='asis'}
+df <- data.frame(transition = c('mida2mida', 'mida2seus', 'mida2bof', 'mida2gom', 'mida2gsc', 'mida2jl', 'mida2ne', 'mida2nrth', 'mida2rb'), 
+                 alpha = c(7.93, 1.98, 1.41, 1.41, 1.41, 1.41, 1.41, 1.41, 1.41),
+                 beta = c(11.89, 17.84, 1.41, 1.41, 1.41, 1.41, 1.41, 1.41, 1.41))
+knitr::kable(df, caption = 'Table 2. Marginal Beta distributions for 9 possible transitions from MIDA to other regions from January to February.')
+```
+
+This table shows the marginal distributions for each of the $\pi_i$ parameters of the Dirichlet distribution. In the last section, we go from the marginals to a final prior distribution.
+
+### Assembling the Dirichlet Prior
+In the final analysis of the movement data, we are going to use a mixture of Dirichlet distributions that is comprised of each experts' unique Dirichlet prior distribution for a particular transition. This section describes how to take the marginal distributions given above, and turn them into the final expert-specific prior.
+
+We need to assemble the Dirichlet comprised of 9 possible transitions from the 9 Beta distributions outlined above, e.g. $Dir(d_1, d_2, \ldots, d_9)$. In this instance $n = d_1 + d_2 + \ldots + d_9$. Each Beta distribution, $Be(a_{11}, a_{12})$ can be expressed as $Be(d_1, n - d_1)$; therefore $d_1 = a_{11}, d_2 = a_{21}$, etc. We use these definitions to construct the distribution as follows. 
+
+$$ n = 7.93 + 1.98 + 1.41 + 1.41 + 1.41 + 1.41 + 1.41 + 1.41 + 1.41 = 39.6 $$
+
+This allows us to express this experts' Dirichelt as:
+
+$$Dir(7.93, 1.98, 1.41, 1.41, 1.41, 1.41, 1.41, 1.41, 1.41).$$
