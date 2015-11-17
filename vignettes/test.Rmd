@@ -96,3 +96,94 @@ To sample from this, we first sample 1, 2 or 3 with probability $K$. Let's say w
 $$ f_2^{(1)} = Dir(d_{21}^{(0)} + 15, d_{22}^{(0)} + 25, d_{23}^{(0)} + 60, \ldots, d_{2M}^{(0)} + 21) $$
 
 We repeat this many times, and then build up the mixture distribution.
+
+## Worked Example
+Here we'll use the same structure as above with the same number of Dirichlets (3), the same data, and the same $m$ categories. The real trial will include an expanded number of experts, but we'll keep it compact for the sake of the example. Here are the data along with each of the three expert's Dirichlet's. The experts have low, medium, and high confidence, respectively. We create these $n$ by sampling from iteratively larger ranges with `runif():`
+
+```{r}
+dir1 <- floor(runif(9, 1, 8))
+dir2 <- floor(runif(9, 1, 22))
+dir3 <- floor(runif(9, 1, 25))
+allDirs <- data.frame(expert = rep(1:3, each = 9), priors = c(dir1, dir2, dir3))
+simDat <- c(15, 25, 60, 5, 17, 23, 1, 35, 21)
+
+df <- data.frame(data = simDat,
+                 expert1 = dir1,
+                 expert2 = dir2,
+                 expert3 = dir3)
+knitr::kable(df, caption = "Table 1. Data for worked example and 3 experts' prior Dirichlet distributions.")
+```
+
+First we'll write the function to accept the prior and the data and return the normalising constant $C_j$:
+
+```{r, returnC}
+
+calcC <- function(data, prior){
+  dd <- as.vector(data)
+  pp <- as.vector(prior)
+  if(length(dd) != length(pp)) stop('Data and prior lengths do not match')
+  c <- prod(lgamma(dd + pp)) / lgamma(sum(dd + pp)) 
+  # note that without using log gamma, this blows up.
+  return(c)
+}
+
+calcC(simDat, dir1)
+```
+
+To build that up for each expert we would have this in R code:
+
+```{r}
+c1 <- calcC(simDat, dir1)
+c2 <- calcC(simDat, dir2)
+c3 <- calcC(simDat, dir3)
+
+k1 <- (1/3 * c1) / (1/3 * c1 + 1/3 * c2 + 1/3 * c3)
+k2 <- (1/3 * c2) / (1/3 * c1 + 1/3 * c2 + 1/3 * c3)
+k3 <- (1/3 * c3) / (1/3 * c1 + 1/3 * c2 + 1/3 * c3)
+K <- c(k1, k2, k3)
+```
+
+With those assembled, we now want to sample according to probability $K$, which is:
+
+```{r, showK}
+round(K, 3)
+```
+
+You can see from the strong confidence of Expert 3, their prior will have a lot of weight on the final distribution. On to sampling for one iteration:
+
+```{r}
+a <- runif(1)
+idx <- which.min(abs(K - a))
+prior <- allDirs[allDirs$expert == idx, 'priors']
+library(gtools)
+post <- rdirichlet(1, simDat + prior)
+round(post, 3)
+```
+
+We can now do this in a proper sampling framework and build up the posterior distribution.
+
+```{r}
+nsamp <- 10000
+outdf <- matrix(nrow = nsamp, ncol = 9)
+colnames(outdf) <- c('mida2mida', 'mida2seus', 'mida2bof', 'mida2gom', 'mida2gsc', 'mida2jl', 'mida2ne', 'mida2nrth', 'mida2rb')
+for(i in 1:nsamp){
+  idx <- which(rmultinom(1:3, 1, K) == 1)
+  prior <- allDirs[allDirs$expert == idx, 'priors']
+  outdf[i, ] <- rdirichlet(1, simDat + prior)
+}
+```
+
+And then finally, we can visualise it:
+
+```{r, warning=FALSE, message=FALSE, fig.width=6, fig.height=6}
+library(reshape2)
+library(ggplot2)
+dflong <- melt(as.data.frame(outdf))
+p <- ggplot(data = dflong, aes(value, group = variable))+
+  geom_histogram()+
+  facet_grid(variable ~ .)
+p
+```
+
+
+
