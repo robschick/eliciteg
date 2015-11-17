@@ -1,58 +1,42 @@
 ---
-title: "Vignette Title"
-author: "Vignette Author"
+title: "Merging Multiple Dirichelt Distributions"
+author: "Rob Schick, PhD and Michail Papathomas, PhD"
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+output: 
+  rmarkdown::html_vignette:
+    fig_caption: yes
 vignette: >
-  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteIndexEntry{Merging Multiple Dirichelt Distributions}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-Vignettes are long form documentation commonly included in packages. Because they are part of the distribution of the package, they need to be as compact as possible. The `html_vignette` output type provides a custom style sheet (and tweaks some options) to ensure that the resulting html is as small as possible. The `html_vignette` format:
+Herein we describe the second of the two steps needed to go from the (multiple) raw values we elicited as Beta distributions from the expert into a coherent probability framework. What we describe here is how to take the individual Dirichlet distributions we created in the first vignette, and create a merged Dirichlet. As before we will outline the mathematics, use a toy example, and then work through a proper example with code.
 
-- Never uses retina figures
-- Has a smaller default figure size
-- Uses a custom CSS stylesheet instead of the default Twitter Bootstrap style
+## Mathematical Background
+Let's assume we have a prior with $m$ categories that is a mixture of Dirichlet's:
 
-## Vignette Info
+$$f^0_{(n)} = \sum_{j = 1}^J k_j^{(0)} f_j^{(0)} (n)$$
 
-Note the various macros within the `vignette` section of the metadata block above. These are required in order to instruct R how to build the vignette. Note that you should change the `title` field and the `\VignetteIndexEntry` to match the title of your vignette.
+$$f^0_{(n)} = \sum_{j = 1}^J k_j^{(0)} Dir\left( d^{(0)}_{j1}, \ldots, d^{(0)}_{jm} \right)$$
 
-## Styles
+Note the non-standard notation where the $^{(0)}$ superscript refers to the prior, and later $^{(1)}$ will refer to the posterior.
 
-The `html_vignette` template includes a basic CSS theme. To override this theme you can specify your own CSS in the document metadata as follows:
+To sample from the above distribution, we choose a component distribution $j$ with probability $k_j^{(0)}$. We then sample from $f_j^{(0)} (n)$, assuming our data are $(n_1, \ldots, n_m)$. The posterior for each component is given as:
 
-    output: 
-      rmarkdown::html_vignette:
-        css: mystyles.css
+$$ f_j^{(0)} (n) = Dir \left( d^{(0)}_{j1} + n_1, \ldots, d^{(0)}_{jm} + n_m\right ),$$
 
-## Figures
+with normalising constant $C$ given as:
 
-The figure sizes have been customised so that you can easily put two images side-by-side. 
+$$ C_j = \frac{\prod^M_{m=1}\Gamma(d_{jm}^{(0)} + n_m)}{\Gamma \left( \sum^M_{m = 1} (d_{jm}^{(0)} + n_m)\right)}.$$
 
-```{r, fig.show='hold'}
-plot(1:10)
-plot(10:1)
-```
+The overall posterior is:
 
-You can enable figure captions by `fig_caption: yes` in YAML:
+$$ f^{(1)} (n) = \sum^J_{j=1} k_j^{(1)} f^{(1)}_j (n),$$
 
-    output:
-      rmarkdown::html_vignette:
-        fig_caption: yes
+with 
 
-Then you can use the chunk option `fig.cap = "Your figure caption."` in **knitr**.
+$$k_j^{(1)} = \frac{k_j^{(0)} C_j}{\sum_{j=1}^J k_j^{(0)} C_j} .$$
 
-## More Examples
+To sample, you choose a component distribution $j$with probability $k_j^{(0)}$. We then sample from $f_j^{(1)} (n) = Dir \left( d^{(0)}_{j1} + n_1, \ldots, d^{(0)}_{jm} + n_m\right )$, assuming our data are $(n_1, \ldots, n_m)$.
 
-You can write math expressions, e.g. $Y = X\beta + \epsilon$, footnotes^[A footnote here.], and tables, e.g. using `knitr::kable()`.
-
-```{r, echo=FALSE, results='asis'}
-knitr::kable(head(mtcars, 10))
-```
-
-Also a quote using `>`:
-
-> "He who gives up [code] safety for [code] speed deserves neither."
-([via](https://twitter.com/hadleywickham/status/504368538874703872))
