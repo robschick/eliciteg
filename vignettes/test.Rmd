@@ -103,7 +103,7 @@ Here we'll use the same structure as above with the same number of Dirichlets (3
 ```{r, fig.width=6, fig.height=6}
 library(ggplot2)
 dir1 <- floor(rgamma(9, 2, 0.5));dir1[dir1 == 0] <- 1
-dir2 <- floor(rgamma(9, 9, 0.5));dir2[dir2 == 0] <- 1
+dir2 <- floor(rgamma(9, 4, 0.5));dir2[dir2 == 0] <- 1
 dir3 <- floor(rgamma(9, 10, 2));dir3[dir3 == 0] <- 1
 
 allDirs <- data.frame(expert = rep(1:3, each = 9), priors = c(dir1, dir2, dir3))
@@ -160,7 +160,10 @@ You can see from the strong confidence of Expert 3, their prior will have a lot 
 
 ```{r}
 a <- runif(1)
-idx <- which.min(abs(K - a))
+a
+round(K, 3)
+idx <- which.min(abs(K - a)) # I am not sure if this is the right algorithm
+# I experimented with findInterval(), but couldn't get what I wanted
 prior <- allDirs[allDirs$expert == idx, 'priors']
 library(gtools)
 post <- rdirichlet(1, simDat + prior)
@@ -176,7 +179,7 @@ colnames(outdf) <- c('mida2mida', 'mida2seus', 'mida2bof', 'mida2gom',
                      'mida2gsc', 'mida2jl', 'mida2ne', 'mida2nrth', 'mida2rb')
 for(i in 1:nsamp){
   a <- runif(1)
-  idx <- which.min(abs(K - a))
+  idx <- which.min(abs(K - a)) 
   prior <- allDirs[allDirs$expert == idx, 'priors']
   outdf[i, ] <- rdirichlet(1, simDat + prior)
 }
