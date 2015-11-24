@@ -4,6 +4,7 @@
 #' @param probs Posterior movement probabilities
 #' @param from A label of length 1 corresponding to the from region
 #' @param to A vector of length n corresponding to the to regions
+#' @seealso I used recipe 3.10 from The R Graphics Cookbook, by Winston Chang
 #' @examples
 #' cleveDot(n = 9, probs = c(0.033, 0.033, 0.033, 0.184, 0.033, 0.584, 0.033, 0.033, 0.033), from = 'BOF',
 #' to = c('BOF', 'GOM', 'GSC', 'JL', 'MIDA', 'NE', 'NRTH', 'RB', 'SEUS'))
