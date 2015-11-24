@@ -4,22 +4,20 @@
 \alias{cleveDot}
 \title{cleveDot - Creates faceted Cleveland-style strip/dot charts of Movement Probabilities}
 \usage{
-cleveDot(n, probs, from, to)
+cleveDot(probs, from, to)
 }
 \arguments{
-\item{n}{A number corresponding to the number of geographic regions}
-
 \item{probs}{Posterior movement probabilities}
 
-\item{from}{A label of length 1 corresponding to the from region}
+\item{from}{A vector of length n corresponding to the to regions}
 
-\item{to}{A vector of length n corresponding to the to regions}
+\item{to}{A label of length 1 corresponding to the from region}
 }
 \description{
 cleveDot - Creates faceted Cleveland-style strip/dot charts of Movement Probabilities
 }
 \examples{
-cleveDot(n = 9, probs = c(0.033, 0.033, 0.033, 0.184, 0.033, 0.584, 0.033, 0.033, 0.033), from = 'BOF',
+cleveDot(probs = c(0.033, 0.033, 0.033, 0.184, 0.033, 0.584, 0.033, 0.033, 0.033), from = 'BOF',
 to = c('BOF', 'GOM', 'GSC', 'JL', 'MIDA', 'NE', 'NRTH', 'RB', 'SEUS'))
 }
 \seealso{
