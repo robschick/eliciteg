@@ -7,9 +7,10 @@
 #' @examples
 #' cleveDot(probs = c(0.033, 0.033, 0.033, 0.184, 0.033, 0.584, 0.033, 0.033, 0.033), from = 'BOF',
 #' to = c('BOF', 'GOM', 'GSC', 'JL', 'MIDA', 'NE', 'NRTH', 'RB', 'SEUS'))
-cleveDot <- function(probs, from, to){
+cleveDot <- function(probs, from, to, present = TRUE){
 
   # if(!all.equal(sum(probs), 1, tolerance = .01)) stop('Probabilities do not sum to 1')
+  ifelse(present, bsize <- 18, bsize <- 12)
   df <- data.frame(from = from, to = to, moveProbs = probs)
 
   p <- ggplot(data = df, aes(x = moveProbs, y = reorder(from, moveProbs)))+
@@ -18,7 +19,7 @@ cleveDot <- function(probs, from, to){
     coord_cartesian(xlim = c(0, 1))+
     labs(x = 'Posterior Movement Probability', y = 'Source Region')+
     ggtitle(label = paste('Destination Region is: ', df$to, sep = ''))+
-    theme_bw()+
+    theme_bw(base_size = bsize)+
     theme(panel.grid.major.x = element_blank(),
           panel.grid.minor.x = element_blank(),
           panel.grid.major.y = element_line(colour = 'grey60', linetype = 'dashed'))
