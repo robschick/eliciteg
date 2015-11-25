@@ -40,3 +40,62 @@
 #' and Long Island because these areas most closely approximate the regions from
 #' NEAq's sightings catalog.
 "winn"
+
+#' Answers from Round Two of Expert Elicitation on Right Whale Movement - June 2015
+#'
+#' A dataset in list format containing the answers from 8 different experts on 6 different
+#' questions pertaining to movements of right whales in and around the mid-Atlantic
+#' region. Three questions were on Adult male right whales; 3 questions were on Adult
+#' female right whales. List elements correspond to each question.
+#'
+#' @seealso We used a list because the number of variables changes in each question.
+#' @format A list with 6 elements, corresponding to 6 questions. Variables are:
+#' \itemize{
+#' \item inputConfRaw: the raw value the expert entered for their confidence around their answers (1-100)
+#' \item inputConfScale: the response for inputConfRaw rescaled range (1-622)
+#' \item moveNortherntoMida: Response for number of whales out of 100 moving from Northern regions to mid-Atlantic. note that the variable number changes from 2 to 3 for questions 2 and 5.
+#' \item gender: the sex of the animal
+#' \item respondent: the expert's name
+#' }
+"dfList"
+
+
+#' Vector Label for each of the 6 questions
+#'
+#' This vector is just used for labeling items.
+"outnames"
+
+#' Summarised Answers from Round Two of Expert Elicitation on Right Whale Movement - June 2015
+#'
+#' A dataset containing the summarised answers from 8 different experts on 6 different
+#' questions pertaining to movements of right whales in and around the mid-Atlantic
+#' region. Three questions were on Adult male right whales; 3 questions were on Adult
+#' female right whales. List elements correspond to each question.
+#'
+#' @format A data frame with 6 rows and 4 variables:
+#' \itemize{
+#' \item confRawMean: mean of all 8 experts' answers for raw confidence (1-100)
+#' \item confScaleMean: mean of all 8 experts' answers for scaled confidence (1-622)
+#' \item moveMean: mean movements of number of whales out of 100
+#' \item qname: the expert's name
+#' }
+"sumstat"
+
+#' Answers from Round One of Expert Elicitation on Right Whale Movement - November 2013
+#'
+#' A dataset containing the summarised answers from 10 different experts on 14 different
+#' questions pertaining to seasonal distribution of right whales (Questions 1-8) and
+#' the movements of right whales in and around the mid-Atlantic region (Questions 9-14).
+#'
+#' @format A data frame with 140 rows and 8 variables:
+#' \itemize{
+#' \item question: the number of each question (1-14)
+#' \item qname: the appreviated name of each question, e.g. q1round2, q14round2
+#' \item topic: brief textual description of the topic of each question
+#' \item min: lower bound for the experts answer
+#' \item max: upper bound for the experts answer
+#' \item mode: mode of the answer
+#' \item weighting: how much confidence the expert has in their answer (1-100)
+#' \item expert: numerical identifier of the expert (1-10)
+#' }
+"nov2013"
