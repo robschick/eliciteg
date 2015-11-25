@@ -34,7 +34,7 @@
 #' \item number: number of whales sighted (0, n)
 #' }
 #' @seealso The citation for this is Winn, et al. 1986. The Distributional Biology
-#' of the Right Whale (\textit{Eubalaena glacialis}) in the Western North Atlantic.
+#' of the Right Whale (\emph{Eubalaena glacialis}) in the Western North Atlantic.
 #' Rep. Int. Whal. Comm. (Special Issue 10), pages 129-38.
 #' Regions were taken from Figures 1 and 4. From Figure 4, I lumped Cape Hatteras, Mid-Atlantic,
 #' and Long Island because these areas most closely approximate the regions from
