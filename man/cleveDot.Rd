@@ -4,7 +4,7 @@
 \alias{cleveDot}
 \title{cleveDot - Creates faceted Cleveland-style strip/dot charts of Movement Probabilities}
 \usage{
-cleveDot(probs, from, to)
+cleveDot(probs, from, to, present = TRUE)
 }
 \arguments{
 \item{probs}{Posterior movement probabilities}
