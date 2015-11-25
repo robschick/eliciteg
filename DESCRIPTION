@@ -3,10 +3,12 @@ Type: Package
 Title: What the Package Does (Title Case)
 Version: 0.1
 Date: 2015-11-11
-Author: Who wrote it
-Maintainer: Who to complain to <yourfault@somewhere.net>
+Author:Rob Schick, PhD
+Maintainer: Rob Schick <robschick@gmail.com>
 Description: More about what it does (maybe more than one line)
 License: What license is it under?
 LazyData: TRUE
 Imports:
   gtools
+Suggests: knitr
+VignetteBuilder: knitr
