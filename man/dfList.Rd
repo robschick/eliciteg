@@ -10,7 +10,8 @@
 \item inputConfScale: the response for inputConfRaw rescaled range (1-622)
 \item moveNortherntoMida: Response for number of whales out of 100 moving from Northern regions to mid-Atlantic. note that the variable number changes from 2 to 3 for questions 2 and 5.
 \item gender: the sex of the animal
-\item respondent: the expert's name
+\item expert: the expert's numerical identifier
+\itme question: the number of each question ("q9round2", "q10round2", "q11round2", "q12round2", "q13round2", "q14round2")
 }}
 \usage{
 dfList
