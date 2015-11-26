@@ -41,30 +41,6 @@
 #' NEAq's sightings catalog.
 "winn"
 
-#' Answers from Round Two of Expert Elicitation on Right Whale Movement - June 2015
-#'
-#' A dataset in list format containing the answers from 8 different experts on 6 different
-#' questions pertaining to movements of right whales in and around the mid-Atlantic
-#' region. Three questions were on Adult male right whales; 3 questions were on Adult
-#' female right whales. List elements correspond to each question.
-#'
-#' @seealso We used a list because the number of variables changes in each question.
-#' @format A list with 6 elements, corresponding to 6 questions. Variables are:
-#' \itemize{
-#' \item inputConfRaw: the raw value the expert entered for their confidence around their answers (1-100)
-#' \item inputConfScale: the response for inputConfRaw rescaled range (1-622)
-#' \item moveNortherntoMida: Response for number of whales out of 100 moving from Northern regions to mid-Atlantic. note that the variable number changes from 2 to 3 for questions 2 and 5.
-#' \item gender: the sex of the animal
-#' \item respondent: the expert's name
-#' }
-"dfList"
-
-
-#' Vector Label for each of the 6 questions
-#'
-#' This vector is just used for labeling items.
-"outnames"
-
 #' Summarised Answers from Round Two of Expert Elicitation on Right Whale Movement - June 2015
 #'
 #' A dataset containing the summarised answers from 8 different experts on 6 different
@@ -99,3 +75,20 @@
 #' \item expert: numerical identifier of the expert (1-10)
 #' }
 "nov2013"
+
+#' Answers from Second Expert Elicitation on Right Whale Movement - June 2015
+#'
+#' A dataset containing the summarised answers from 8 different experts on 6 different
+#' questions pertaining to the movements of right whales in and around the mid-Atlantic
+#' region (Questions 9-14).
+#'
+#' @format A data frame with 48 rows and 7 variables:
+#' \itemize{
+#' \item inputConfRaw: the raw value the expert entered for their confidence around their answers (1-100)
+#' \item inputConfScale: the response for inputConfRaw rescaled range (1-622)
+#' \item moveMIDA: Response for number of whales out of 100 moving into/out of the MIDA.
+#' \item gender: the sex of the animal
+#' \item expert: Numerical identifier of the expert (1-10)
+#' \item question: the number of each question ("q9round2", "q10round2", "q11round2", "q12round2", "q13round2", "q14round2")
+#' }
+"june2015"
