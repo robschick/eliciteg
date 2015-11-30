@@ -1,12 +1,12 @@
 ---
-title: "Merging Multiple Dirichelt Distributions"
+title: "Merging Multiple Dirichlet Distributions"
 author: "Rob Schick, PhD and Michail Papathomas, PhD"
 date: "`r Sys.Date()`"
 output: 
   rmarkdown::html_vignette:
     fig_caption: yes
 vignette: >
-  %\VignetteIndexEntry{Merging Multiple Dirichelt Distributions}
+  %\VignetteIndexEntry{Merging Multiple Dirichlet Distributions}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
