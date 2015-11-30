@@ -13,7 +13,15 @@ paramSum <- function(present = TRUE){
     xlab('# whales / 100')+
     facet_grid(gender ~ qlab)+
     theme_bw(base_size = bsize)
-  print(p)
+
+  yseq <- seq(12.5, 17.5, by = 0.5)
+  for (i in 1:nrow(dataInput2())) {
+    lines(x = c(dataInput2()$min[i] / 100, dataInput2()$max[i] / 100),
+          y = c(yseq[i], yseq[i]), lwd = 2, col = rgb(0, 0, 0, 0.2))
+    points(dataInput2()$mode[i] / 100, yseq[i], pch = 24, bg = 'grey60', cex = .75)
+  }
+
+    print(p)
 
 
 }
