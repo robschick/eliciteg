@@ -11,20 +11,20 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-Herein we describe the second of the two steps needed to go from the (multiple) raw values we elicited as Beta distributions from the expert into a coherent probability framework. What we describe here is how to take the individual Dirichlet distributions we created in the first vignette, and create a merged Dirichlet. As before we will outline the mathematics, use a toy example, and then work through a proper example with code.
+Herein we describe the second of the two steps needed to go from the (multiple) raw values we elicited as Beta distributions from the expert into a coherent probability framework. What we describe here is how to take the individual Dirichlet distributions we created in the first vignette, and create a mixture of Dirichlet Distributions. As before we will outline the mathematics, use a toy example, and then work through a proper example with code.
 
 ## Mathematical Background
-Let's assume we have a prior with $m$ categories that is a mixture of Dirichlet's:
+Let's assume we have a prior with $M$ categories that is a mixture of Dirichlet's:
 
-$$f^0_{(n)} = \sum_{j = 1}^J k_j^{(0)} f_j^{(0)} (n)$$
+$$f^{(0)} = \sum_{j = 1}^J k_j^{(0)} f_j^{(0)} (\pi)$$
 
-$$f^0_{(n)} = \sum_{j = 1}^J k_j^{(0)} Dir\left( d^{(0)}_{j1}, \ldots, d^{(0)}_{jm} \right)$$
+$$f^{(0)} = \sum_{j = 1}^J k_j^{(0)} Dir\left( d^{(0)}_{j1}, \ldots, d^{(0)}_{jM} \right)$$
 
 Note the non-standard notation where the $^{(0)}$ superscript refers to the prior, and later $^{(1)}$ will refer to the posterior.
 
-To sample from the above distribution, we choose a component distribution $j$ with probability $k_j^{(0)}$. We then sample from $f_j^{(0)} (n)$, assuming our data are $(n_1, \ldots, n_m)$. The posterior for each component is given as:
+To sample from the above distribution, we choose a component distribution $j$ with probability $k_j^{(0)}$. We then sample from $f_j^{(0)} (\pi)$, assuming our data are $(n_1, \ldots, n_M)$. The posterior for each component is given as:
 
-$$ f_j^{(0)} (n) = Dir \left( d^{(0)}_{j1} + n_1, \ldots, d^{(0)}_{jm} + n_m\right ),$$
+$$ f_j^{(1)} (n) = Dir \left( d^{(1)}_{j1} + n_1, \ldots, d^{(1)}_{jM} + n_M\right ),$$
 
 with normalising constant $C$ given as:
 
@@ -32,13 +32,13 @@ $$ C_j = \frac{\prod^M_{m=1}\Gamma(d_{jm}^{(0)} + n_m)}{\Gamma \left( \sum^M_{m 
 
 The overall posterior is:
 
-$$ f^{(1)} (n) = \sum^J_{j=1} k_j^{(1)} f^{(1)}_j (n),$$
+$$ f^{(1)} (\pi) = \sum^J_{j=1} k_j^{(1)} f^{(1)}_j (\pi),$$
 
 with 
 
-$$k_j^{(1)} = \frac{k_j^{(0)} C_j}{\sum_{j=1}^J k_j^{(0)} C_j} .$$
+$$k_j^{(1)} = \frac{k_j^{(0)} C_j}{\sum_{i=1}^J k_j^{(0)} C_j} .$$
 
-To sample, you choose a component distribution $j$with probability $k_j^{(0)}$. We then sample from $f_j^{(1)} (n) = Dir \left( d^{(0)}_{j1} + n_1, \ldots, d^{(0)}_{jm} + n_m\right )$, assuming our data are $(n_1, \ldots, n_m)$.
+To sample, you choose a component distribution $j$with probability $k_j^{(0)}$. We then sample from $f_j^{(1)} (\pi) = Dir \left( d^{(0)}_{j1} + n_1, \ldots, d^{(0)}_{jM} + n_M\right )$, assuming our data are $(n_1, \ldots, n_M)$.
 
 ## Posterior Calculations
 Ok, let's work through a toy example with fake data. First, let's assume we have data with $M$ categories $(15, 25, 60, \ldots, 21)$ and one Dirichlet prior distribution:
@@ -57,7 +57,7 @@ The posterior is a mixture of these Dirichlet's, but NOT with $\frac{1}{3}$ weig
 
 Say the prior weights can be written as:
 
-$$ K^{(0)}_1 = \frac{1}{3}, K^{(0)}_2 = \frac{1}{3}, K^{(0)}_3 = \frac{1}{3} $$
+$$ k^{(0)}_1 = \frac{1}{3}, k^{(0)}_2 = \frac{1}{3}, k^{(0)}_3 = \frac{1}{3} $$
 
 and that we have three posterior Dirichlet's: 
 
@@ -69,7 +69,7 @@ $$ f_3^{(1)} = Dir(d_{31}^{(0)} + 15, d_{32}^{(0)} + 25, d_{33}^{(0)} + 60, \ldo
 
 Our new posterior is:  
 
-$$ K^{(1)}_1 f_1^{(1)} + K^{(1)}_2 f_2^{(1)} + K^{(1)}_3 f_3^{(1)}. $$
+$$ k^{(1)}_1 f_1^{(1)} + k^{(1)}_2 f_2^{(1)} + k^{(1)}_3 f_3^{(1)}. $$
 
 Next we calculate the weights. To do this we first calculate the normalising constant $C$ for each prior, and then calculate the full prior weight for each of the three distributions.
 
@@ -81,11 +81,11 @@ $$ C_3 = \frac{\prod^M_{m=1}\Gamma(d_{3m}^{(0)} + n_m)}{\Gamma \left( \sum^M_{m 
 
 All three of these are then included in the complete calculation for $K^{(1)}_j$
 
-$$ K^{(1)}_1  = \frac{K^{(0)}_1 C_1}{K^{(0)}_1 C_1 + K^{(0)}_2 C_2 + K^{(0)}_3 C_3} = \frac{\frac{1}{3} C_1}{\frac{1}{3} C_1 + \frac{1}{3} C_2 + \frac{1}{3} C_3},$$
+$$ k^{(1)}_1  = \frac{k^{(0)}_1 C_1}{k^{(0)}_1 C_1 + k^{(0)}_2 C_2 + k^{(0)}_3 C_3} = \frac{\frac{1}{3} C_1}{\frac{1}{3} C_1 + \frac{1}{3} C_2 + \frac{1}{3} C_3},$$
 
-$$ K^{(1)}_2  = \frac{K^{(0)}_2 C_2}{K^{(0)}_1 C_1 + K^{(0)}_2 C_2 + K^{(0)}_3 C_3} = \frac{\frac{1}{3} C_2}{\frac{1}{3} C_1 + \frac{1}{3} C_2 + \frac{1}{3} C_3},$$
+$$ k^{(1)}_2  = \frac{k^{(0)}_2 C_2}{k^{(0)}_1 C_1 + k^{(0)}_2 C_2 + k^{(0)}_3 C_3} = \frac{\frac{1}{3} C_2}{\frac{1}{3} C_1 + \frac{1}{3} C_2 + \frac{1}{3} C_3},$$
 
-$$ K^{(1)}_3  = \frac{K^{(0)}_3 C_3}{K^{(0)}_1 C_1 + K^{(0)}_2 C_2 + K^{(0)}_3 C_3} = \frac{\frac{1}{3} C_3}{\frac{1}{3} C_1 + \frac{1}{3} C_2 + \frac{1}{3} C_3}.$$
+$$ k^{(1)}_3  = \frac{k^{(0)}_3 C_3}{k^{(0)}_1 C_1 + k^{(0)}_2 C_2 + k^{(0)}_3 C_3} = \frac{\frac{1}{3} C_3}{\frac{1}{3} C_1 + \frac{1}{3} C_2 + \frac{1}{3} C_3}.$$
 
 The posterior is:  
 
@@ -98,27 +98,17 @@ $$ f_2^{(1)} = Dir(d_{21}^{(0)} + 15, d_{22}^{(0)} + 25, d_{23}^{(0)} + 60, \ldo
 We repeat this many times, and then build up the mixture distribution.
 
 ## Worked Example
-Here we'll use the same structure as above with the same number of Dirichlets (3), the same data, and the same $m$ categories. The real trial will include an expanded number of experts, but we'll keep it compact for the sake of the example. Here are the data along with each of the three expert's Dirichlet's. The experts have low, medium, and high confidence, respectively. We create these $n$ by sampling from different `rgamma()` distributions:
+Here we'll start with a very simple example: 2 experts and three categories. The real trial will include an expanded number of experts, but we'll keep it compact for the sake of the example. Here are the data along with each of the expert's Dirichlet's. The experts have low, and high confidence, respectively. We create these $n$ by simply assigning the data:
 
 ```{r, fig.width=6, fig.height=6}
 library(ggplot2)
-dir1 <- floor(rgamma(9, 2, 0.5));dir1[dir1 == 0] <- 1
-dir2 <- floor(rgamma(9, 4, 0.5));dir2[dir2 == 0] <- 1
-dir3 <- floor(rgamma(9, 10, 2));dir3[dir3 == 0] <- 1
+dir1 <- c(1, 2, 4)
+dir2 <- c(10, 5, 1)
 
-allDirs <- data.frame(expert = rep(1:3, each = 9), priors = c(dir1, dir2, dir3))
-allDirs$priors[allDirs$priors == 0] <- 1
-
-ggplot(allDirs, aes(x = priors, fill = factor(expert))) + 
-  geom_density(alpha = 0.2)
-
-simDat <- c(15, 25, 60, 5, 17, 23, 1, 35, 21)
-
-df <- data.frame(data = simDat,
-                 expert1 = dir1,
-                 expert2 = dir2,
-                 expert3 = dir3)
-knitr::kable(df, caption = "Table 1. Data for worked example and 3 experts' prior Dirichlet distributions.")
+simDat <- c(5, 5, 5)
+allDirs <- data.frame(expert = rep(c(1,2), each = 3), priors = c(dir1, dir2))
+df <- data.frame(Data = simDat, Expert1 = dir1, Expert2 = dir2)
+knitr::kable(df, caption = "Table 1. Data for worked example and 2 experts' prior Dirichlet distributions.")
 ```
 
 First we'll write the function to accept the prior and the data and return the normalising constant $C_j$:
@@ -126,15 +116,17 @@ First we'll write the function to accept the prior and the data and return the n
 ```{r, returnC}
 
 calcC <- function(data, prior){
+
   dd <- as.vector(data)
   pp <- as.vector(prior)
   if(length(dd) != length(pp)) stop('Data and prior lengths do not match')
-  c <- prod(lgamma(dd + pp)) / lgamma(sum(dd + pp)) 
-  # note that without using log gamma, this blows up.
-  return(c)
+  logc <- sum(lgamma(dd + pp)) - lgamma(sum(dd + pp))  
+
+  return(exp(logc))
 }
 
 calcC(simDat, dir1)
+calcC(simDat, dir2)
 ```
 
 To build that up for each expert we would have this in R code:
@@ -142,12 +134,11 @@ To build that up for each expert we would have this in R code:
 ```{r}
 c1 <- calcC(simDat, dir1)
 c2 <- calcC(simDat, dir2)
-c3 <- calcC(simDat, dir3)
+nex <- 2
+k1 <- (1/nex * c1) / (1/nex * c1 + 1/nex * c2)
+k2 <- (1/nex * c2) / (1/nex * c1 + 1/nex * c2)
 
-k1 <- (1/3 * c1) / (1/3 * c1 + 1/3 * c2 + 1/3 * c3)
-k2 <- (1/3 * c2) / (1/3 * c1 + 1/3 * c2 + 1/3 * c3)
-k3 <- (1/3 * c3) / (1/3 * c1 + 1/3 * c2 + 1/3 * c3)
-K <- c(k1, k2, k3)
+K <- c(k1, k2)
 ```
 
 With those assembled, we now want to sample according to probability $K$, which is:
@@ -156,14 +147,10 @@ With those assembled, we now want to sample according to probability $K$, which 
 round(K, 3)
 ```
 
-You can see from the strong confidence of Expert 3, their prior will have a lot of weight on the final distribution. On to sampling for one iteration:
+On to sampling for one iteration:
 
 ```{r}
-a <- runif(1)
-a
-round(K, 3)
-idx <- which.min(abs(K - a)) # I am not sure if this is the right algorithm
-# I experimented with findInterval(), but couldn't get what I wanted
+idx <- which(rmultinom(1, 1, K) == 1)
 prior <- allDirs[allDirs$expert == idx, 'priors']
 library(gtools)
 post <- rdirichlet(1, simDat + prior)
@@ -174,14 +161,14 @@ We can now do this in a proper sampling framework and build up the posterior dis
 
 ```{r}
 nsamp <- 10000
-outdf <- matrix(nrow = nsamp, ncol = 9)
-colnames(outdf) <- c('mida2mida', 'mida2seus', 'mida2bof', 'mida2gom', 
-                     'mida2gsc', 'mida2jl', 'mida2ne', 'mida2nrth', 'mida2rb')
+outdf <- matrix(nrow = nsamp, ncol = 3)
+colnames(outdf) <- c('Area 1', 'Area 2', 'Area 3')
 for(i in 1:nsamp){
-  a <- runif(1)
-  idx <- which.min(abs(K - a)) 
+  
+  idx <- which(rmultinom(1, 1, K) == 1)
   prior <- allDirs[allDirs$expert == idx, 'priors']
   outdf[i, ] <- rdirichlet(1, simDat + prior)
+  
 }
 ```
 
@@ -192,7 +179,7 @@ library(reshape2)
 library(ggplot2)
 dflong <- melt(as.data.frame(outdf))
 p <- ggplot(data = dflong, aes(value, group = variable))+
-  geom_histogram()+
+  geom_density()+
   facet_grid(variable ~ .)
 p
 ```
