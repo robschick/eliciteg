@@ -28,7 +28,7 @@ $$ f_j^{(1)} (n) = Dir \left( d^{(1)}_{j1} + n_1, \ldots, d^{(1)}_{jM} + n_M\rig
 
 with normalising constant $C$ given as:
 
-$$ C_j = \frac{\prod^M_{m=1}\Gamma(d_{jm}^{(0)} + n_m)}{\Gamma \left( \sum^M_{m = 1} (d_{jm}^{(0)} + n_m)\right)}.$$
+$$ C_j = \frac{\frac{\Gamma \left( \sum^M_{m = 1} (d_{jm}^{(0)})\right)}{\prod^M_{m=1}\Gamma(d_{jm}^{(0)})}}{\frac{\Gamma \left( \sum^M_{m = 1} (d_{jm}^{(0)} + n_m)\right)}{\prod^M_{m=1}\Gamma(d_{jm}^{(0)} + n_m)}}.$$
 
 The overall posterior is:
 
@@ -73,11 +73,11 @@ $$ k^{(1)}_1 f_1^{(1)} + k^{(1)}_2 f_2^{(1)} + k^{(1)}_3 f_3^{(1)}. $$
 
 Next we calculate the weights. To do this we first calculate the normalising constant $C$ for each prior, and then calculate the full prior weight for each of the three distributions.
 
-$$ C_1 = \frac{\prod^M_{m=1}\Gamma(d_{1m}^{(0)} + n_m)}{\Gamma \left( \sum^M_{m = 1} (d_{1m}^{(0)} + n_m)\right)}, $$
+$$ C_1 = \frac{\frac{\Gamma \left( \sum^M_{m = 1} (d_{1m}^{(0)})\right)}{\prod^M_{m=1}\Gamma(d_{1m}^{(0)})}}{\frac{\Gamma \left( \sum^M_{m = 1} (d_{1m}^{(0)} + n_m)\right)}{\prod^M_{m=1}\Gamma(d_{1m}^{(0)} + n_m)}}, $$
 
-$$ C_2 = \frac{\prod^M_{m=1}\Gamma(d_{2m}^{(0)} + n_m)}{\Gamma \left( \sum^M_{m = 1} (d_{2m}^{(0)} + n_m)\right)}, $$
+$$ C_2 = \frac{\frac{\Gamma \left( \sum^M_{m = 1} (d_{2m}^{(0)})\right)}{\prod^M_{m=1}\Gamma(d_{2m}^{(0)})}}{\frac{\Gamma \left( \sum^M_{m = 1} (d_{2m}^{(0)} + n_m)\right)}{\prod^M_{m=1}\Gamma(d_{2m}^{(0)} + n_m)}}, $$
 
-$$ C_3 = \frac{\prod^M_{m=1}\Gamma(d_{3m}^{(0)} + n_m)}{\Gamma \left( \sum^M_{m = 1} (d_{3m}^{(0)} + n_m)\right)}. $$
+$$ C_3 = \frac{\frac{\Gamma \left( \sum^M_{m = 1} (d_{3m}^{(0)})\right)}{\prod^M_{m=1}\Gamma(d_{3m}^{(0)})}}{\frac{\Gamma \left( \sum^M_{m = 1} (d_{3m}^{(0)} + n_m)\right)}{\prod^M_{m=1}\Gamma(d_{3m}^{(0)} + n_m)}}. $$
 
 All three of these are then included in the complete calculation for $K^{(1)}_j$
 
@@ -100,15 +100,42 @@ We repeat this many times, and then build up the mixture distribution.
 ## Worked Example
 Here we'll start with a very simple example: 2 experts and three categories. The real trial will include an expanded number of experts, but we'll keep it compact for the sake of the example. Here are the data along with each of the expert's Dirichlet's. The experts have low, and high confidence, respectively. We create these $n$ by simply assigning the data:
 
-```{r, fig.width=6, fig.height=6}
+```{r}
 library(ggplot2)
-dir1 <- c(1, 2, 4)
-dir2 <- c(10, 5, 1)
+dir1 <- c(1, 5, 9)
+dir2 <- c(10, 50, 90)
 
-simDat <- c(5, 5, 5)
+simDat <- c(1, 1, 1)
 allDirs <- data.frame(expert = rep(c(1,2), each = 3), priors = c(dir1, dir2))
 df <- data.frame(Data = simDat, Expert1 = dir1, Expert2 = dir2)
 knitr::kable(df, caption = "Table 1. Data for worked example and 2 experts' prior Dirichlet distributions.")
+```
+
+Let's see what these would look like in terms of prior distributions:
+
+```{r, warning=FALSE, message=FALSE, fig.width=6, fig.height=6, echo=FALSE}
+library(reshape2)
+library(gtools)
+outdf1 <- data.frame(expert = 'Expert 1', rdirichlet(10000, dir1))
+outdf2 <- data.frame(expert = 'Expert 2', rdirichlet(10000, dir2))
+outdf <- rbind(outdf1, outdf2)
+colnames(outdf) <- c('expert', 'Area 1', 'Area 2', 'Area 3')
+dflongPrior <- melt(as.data.frame(outdf))
+
+
+p <- ggplot(data = dflongPrior, aes(value, group = expert, fill = expert))+
+  geom_density(alpha = 0.5)+
+  facet_grid(variable ~ .)+
+  theme(legend.position="top", 
+        legend.text = element_text(size = 12), 
+        plot.title = element_text(size = 14))+
+  scale_fill_discrete(limits = c('Expert 1', 'Expert 2'), 
+                      labels = c(paste('Expert 1: Dir(', dir1[1], ', ', dir1[2], ', ',  dir1[3], ')', sep = ''), 
+                                 paste('Expert 2: Dir(', dir2[1], ', ', dir2[2], ', ',  dir2[3], ')', sep = '')))+
+  guides(fill = guide_legend(title = NULL))+
+  ggtitle(label = paste('Prior Dirichlets for data: (', simDat[1], ', ',simDat[2], ', ',simDat[3], ')', sep = ''))
+
+p
 ```
 
 First we'll write the function to accept the prior and the data and return the normalising constant $C_j$:
@@ -120,7 +147,8 @@ calcC <- function(data, prior){
   dd <- as.vector(data)
   pp <- as.vector(prior)
   if(length(dd) != length(pp)) stop('Data and prior lengths do not match')
-  logc <- sum(lgamma(dd + pp)) - lgamma(sum(dd + pp))  
+   
+  logc <- lgamma(sum(pp))-sum(lgamma(pp)) - (lgamma(sum(pp + data))-sum(lgamma(pp + data)))
 
   return(exp(logc))
 }
@@ -172,17 +200,27 @@ for(i in 1:nsamp){
 }
 ```
 
-And then finally, we can visualise it:
+And then finally, we can visualise the posterior and the priors:
 
-```{r, warning=FALSE, message=FALSE, fig.width=6, fig.height=6}
+```{r, warning=FALSE, message=FALSE, fig.width=6, fig.height=6, echo=FALSE}
 library(reshape2)
 library(ggplot2)
-dflong <- melt(as.data.frame(outdf))
-p <- ggplot(data = dflong, aes(value, group = variable))+
-  geom_density()+
-  facet_grid(variable ~ .)
+dflongPost <- melt(as.data.frame(outdf))
+dflongPost$expert <- 'Posterior'
+dflongPostSum <- rbind(dflongPrior, dflongPost)
+p <- ggplot(data = dflongPostSum, aes(value, group = expert, fill = expert))+
+  geom_density(alpha = 0.5)+
+  facet_grid(variable ~ .)+
+  theme(legend.position="top", 
+        legend.text = element_text(size = 12), 
+        plot.title = element_text(size = 14))+
+  scale_fill_discrete(limits = c('Expert 1', 'Expert 2', 'Posterior'), 
+                      labels = c(paste('Expert 1: Dir(', dir1[1], ', ', dir1[2], ', ',  dir1[3], ')', sep = ''), 
+                                 paste('Expert 2: Dir(', dir2[1], ', ', dir2[2], ', ',  dir2[3], ')', sep = ''), 
+                                 'Posterior'))+
+  guides(fill = guide_legend(title = NULL))+
+  ggtitle(label = paste('Posterior Mixture of Dirichlets for data: (', simDat[1], ', ',simDat[2], ', ',simDat[3], ')', sep = ''))
 p
 ```
-
 
 
