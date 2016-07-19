@@ -112,8 +112,8 @@ dfList[[3]]
 So far this is the most straightforward, as neither of the questions need to be split. We have animals starting in the SEUS, and can either remain - `moveSEUStoSEUS` - or move north to MIDA - `moveSEUStoMIDA`
 
 
-## Now we move on to the males. 
-__Question 12__ - Consider a population of 100 adult __male__ right whales that are present in the northern regions during December and move _south_ to the mid-Atlantic during January.
+**** 
+Now we move on to the males. __Question 12__ - Consider a population of 100 adult __male__ right whales that are present in the northern regions during December and move _south_ to the mid-Atlantic during January.
 
 As before with females, in this scenario, there are two possible transitions. The animals are in one of 7 possible Northern regions, and can either move south to MIDA or remain in their Northern region. The answers are in `dfList[[4]]`: 
 
@@ -155,7 +155,7 @@ For __questions 11 and 14,__ we do not need to split any transitions. They can b
 *****
 Now that we've gone through that, let's start in on assembling the data into a form that we can use within the sampler. That means taking these individual Beta distributions, and assembling one Dirichlet.
 
-__Step 1__ Split the Betas
+## Step 1 - Split the Betas
 
 The data are stored in the `dfList.rda` data object. What we want, then, is a data structure that will allow us to easily extract from this and apply it to the matrix prior. Let's assume that we have once slice of a (9 * 9 * 12) array. If we ignore all of Philip Hamilton's priors, that will leave us with something like this:
 
@@ -267,6 +267,42 @@ So this seems to make sense to me. For expert 4 in the first answer, they had a 
 In contrast for expert 1 in the next question, they had much higher confidence - so we expect the values in the prior to be higher, and indeed they are. Also, the individual has equal probability of MIDA to MIDA as they do with MIDA to SEUS; those values are identical at 4.29. Since the number of whales must sum to 100, the value moving North is smaller (20), and that's reflected in the matrix. 
 
 Ok, so it at least passes the intuition test. Now we need to assemble all of these into one matrix/array/list. This will be static because these priors never change. However, they should be in the same form as the data, which is an array, because I'm going to have to add them together. I'm not 100% sure it matters all that much, because I'm just going to be sending them both to `calcC()`.
+
+## Step 2 - Assemble the Prior Matrix
+If we use an array, which is fine, than what are the dimensions that we need? We have: 
+
+1. one month's transition (December to January), 
+2. 9 regions
+3. 8 experts
+4. 3 questions
+5. 2 sexes (M/F)
+
+We need to add a 9x9 slice to a 9x9 slice for each question, where above each array slice is a month. So here we'll just have one slice for the December to January transition. So for each question (1-6) we'll have 8 slices, where each slice represents one experts' prior that has been split based on their answers. I could then just have a recursive list, where each question has a sub-list containing each expert's answers, or each questions' answers. If the latter, we'd have `list[[1]]` correspond to question 9, and then within that list component, we'd have 8 sub-lists, each containing a 9*9 slice that corresponded to each expert.
+
+What would that look like? Let's try it with fake-ish data:
+
+```{r makeFakeListDat}
+nexp <- 8
+nreg <- 9
+nq <- 6
+
+allqs <- list(q1 = vector('list', nexp),
+              q2 = vector('list', nexp),
+              q3 = vector('list', nexp),
+              q4 = vector('list', nexp),
+              q5 = vector('list', nexp),
+              q6 = vector('list', nexp))
+              
+for(i in seq_along(1:nq)){
+ for(j in seq_along(1:nexp)){
+   allqs[[i]][[j]] <- matrix(data = round(runif(nreg * nreg), 0) + j, ncol = nreg, nrow = nreg)
+  } 
+}
+
+allqs[[2]][[2]]
+```
+
+Not the most elegant way of doing it, I don't think, but it works and is fast enough for this application.
 
 ### Testing the Algorithm with Data = 0
 The goal here is to simply substitute 0 values in for all the data in `maleDat`. If the sampling algorithm is working correctly, then the posterior should simply be the same as the prior (`malePrior`).
