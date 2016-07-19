@@ -13,44 +13,261 @@ vignette: >
 
 The goal of this vignette is to take the data gathered from the expert elicitation, turn it into individual priors for each expert, and then sample from it with the algorithm written by Professor Jim Clark, at Duke University. The methods for splitting the individual beta distributions into a Dirichlet are detailed in the vignette: `Split-Beta.Rmd.` The methods for sampling from the mixture distribution are given in: `test.Rmd.`
 
-## Vignette Info
+## Sampling From the Dirichlet
+To set up the sampler, we need to assemble the priors and the data. First, the data. We take these from a previously completed run of the Gibbs sampler. What I did was simply load in the data, run `updateStates()` once, and save it out to an rdata file:
 
-Note the various macros within the `vignette` section of the metadata block above. These are required in order to instruct R how to build the vignette. Note that you should change the `title` field and the `\VignetteIndexEntry` to match the title of your vignette.
-
-## Styles
-
-The `html_vignette` template includes a basic CSS theme. To override this theme you can specify your own CSS in the document metadata as follows:
-
-    output: 
-      rmarkdown::html_vignette:
-        css: mystyles.css
-
-## Figures
-
-The figure sizes have been customised so that you can easily put two images side-by-side. 
-
-```{r, fig.show='hold'}
-plot(1:10)
-plot(10:1)
+```{r savePriorDat, eval=FALSE}
+femEx <- moveFem[, , k]
+maleEx <- moveMale[, , k]
+save(femEx, maleEx, file = 'data/moveData.rda')
 ```
 
-You can enable figure captions by `fig_caption: yes` in YAML:
 
-    output:
-      rmarkdown::html_vignette:
-        fig_caption: yes
+## Testing the Algorithm
+In this section we will explain the sampling algorithm we are using within the Gibbs sampler, highlight how we can extend it to work with the mixture of Dirichlet's, and then test it with just the data.
 
-Then you can use the chunk option `fig.cap = "Your figure caption."` in **knitr**.
+### Structure of the Algorithm
+Jim wrote the algorithm as part of the Schick et al. 2013a PLoS-ONE paper. We used Gibbs sampling to estimate the parameters as opposed to drawing directly from the posterior because we impute the missing data for location. Therefore each time through the Gibbs loop, missing states can change. So the algorithm (based on Gelman et al. 2014) looks like this:
 
-## More Examples
+1. Draw from $x \sim Gamma(a, 1)$
+2. Set $\theta = \frac{x}{\sum_{i=1}^n x}$
 
-You can write math expressions, e.g. $Y = X\beta + \epsilon$, footnotes^[A footnote here.], and tables, e.g. using `knitr::kable()`.
+This is the implementation of that in `R`:
 
-```{r, echo=FALSE, results='asis'}
-knitr::kable(head(mtcars, 10))
+```{r dirichletAlg, eval=FALSE}
+di <- matrix(rgamma(nreg * nreg, 
+                    shape = malePrior[, , k] + maleDat[, , k], 
+                    scale = 1), 
+             nreg, nreg) 
+
+malePost[, , k] <- di / matrix(colSums(di), nreg, nreg, byrow = T)
 ```
 
-Also a quote using `>`:
+where: 
 
-> "He who gives up [code] safety for [code] speed deserves neither."
-([via](https://twitter.com/hadleywickham/status/504368538874703872))
+* `nreg` equals the number of regions (9)
+* `malePrior[, , k]` is the prior for the $k^{th}$ month
+* `maleDat[, , k]` is the data for the $k^{th}$ month
+* `malePost[, , k]` is the Dirichlet posterior
+
+These components look like this. n.b. that in our original code, we chose different names for these data frames. Note also that the data is reinitialised and imputed each time through the loop, so we don't have a glimpse of it.
+
+```{r loadDat, eval=FALSE}
+load('../data/eg_202_ng_25000_BIG_2500.rdata')
+k <- 12
+round(maleMove[, , k], 2) # prior
+round(maleMoveProb[, , k], 2) # posterior
+```
+
+
+### Sampling with the Mixture Approach
+Ok, with the Dirichlet algorithm outlined, we need to use the sampling details from `test.Rmd` to simulate the posterior. Specifically, we need to set up a structure where by each time we go through the Gibbs loop, we sample from the mixture distribution. Before we had just one prior (as shown above); now the prior is a mixture of all experts' answers to the elicitation exercise.
+
+The process flow will be as in `test.Rmd`. This is all within the gibbs loop (because the data update each time): 
+
+1. Split the betas and assemble one Dirichlet matrix containing all priors (Prior to the Gibbs loop)
+2. Calculate `c` for all experts using the estimate data and the individual prior
+3. Use that to assemble the $K$ probability vector
+4. At each iteration draw from a Multinomial distribution with probability $K$. 
+5. Use the $K^{th}$ expert's Dirichlet distribution
+6. Merge it into the existing prior
+7. Sample from the Posterior
+
+****
+First thing that would be useful is to summarise the text of __each question__ so we have it for reference. The reason I think this is necessary, is that we're going to have split this differently based on the direction of movement we ask about. I'll explain each question and data object that they refer to:
+
+__Question 9__ - Consider a population of 100 adult __female__ right whales that are present in the northern regions during December and move _south_ to the mid-Atlantic during January. 
+
+In this scenario, there are two possible transitions. The animals are in one of 7 possible Northern regions, and can either move south to MIDA or remain in their Northern region. The answers are in `dfList[[1]]` (n.b. all the answers are different elements in this list): 
+
+```{r q9dat, warning = FALSE, message = FALSE}
+library(eliciteg)
+dfList[[1]]
+```
+
+
+The moves to the south are represented with the `moveNortherntoMIDA` column. The animals remaining in the Northern regions are in the `moveNortherntoNorthern`. In this case _all_ of these transitions need to be split, because the first one represents 7 transitions from North to MIDA, and the second part of the question refers to animals remaining in 7 different Northern regions. So we'll have a matrix with 7 transitions from North to MIDA populated, as well as 7 `North[i]` to `North[i]` transitions.
+
+
+__Question 10__ - Consider a population of 100 adult __female__ right whales that are present in the mid-Atlantic during December and _remain_ in the mid-Atlantic for any duration during January.
+
+In this scenario, the animals are in the MIDA, and can make three transitions: 1) they can remain in MIDA; 2) move south to MIDA; or 3) move North. The answers are in `dfList[[2]]`: 
+
+```{r q10dat}
+dfList[[2]]
+```
+
+
+This one is a bit more straightforward. We have the MIDA to MIDA transition - `moveMIDAtoMIDA` - that does not need to be split. Then we have the MIDA to SEUS - `moveMIDAtoSEUS` - which also does not need to be split. Finally, we have the MIDA to Northern regions - `moveMIDAtoNorthern` - which __does__ need to be split.
+
+
+__Question 11__ - Consider a population of 100 adult __female__ right whales that are present in the southeastern United States during December and move _north_ to the mid-Atlantic during January.
+
+In this scenario, the animals are in the SEUS and can make one of two transitions. The answers are in `dfList[[3]]`. 
+
+```{r q11dat}
+dfList[[3]]
+```
+
+So far this is the most straightforward, as neither of the questions need to be split. We have animals starting in the SEUS, and can either remain - `moveSEUStoSEUS` - or move north to MIDA - `moveSEUStoMIDA`
+
+
+## Now we move on to the males. 
+__Question 12__ - Consider a population of 100 adult __male__ right whales that are present in the northern regions during December and move _south_ to the mid-Atlantic during January.
+
+As before with females, in this scenario, there are two possible transitions. The animals are in one of 7 possible Northern regions, and can either move south to MIDA or remain in their Northern region. The answers are in `dfList[[4]]`: 
+
+```{r q12dat}
+dfList[[4]]
+```
+
+
+The moves to the south are represented with the `moveNortherntoMIDA` column. The animals remaining in the Northern regions are in the `moveNortherntoNorthern`. In this case _all_ of these transitions need to be split, because the first one represents 7 transitions from North to MIDA, and the second part of the question refers to animals remaining in 7 different Northern regions. So we'll have a matrix with 7 transitions from North to MIDA populated, as well as 7 `North[i]` to `North[i]` transitions.
+
+
+__Question 13__ - Consider a population of 100 adult __male__ right whales that are present in the mid-Atlantic during December and _remain_ in the mid-Atlantic for any duration during January.
+
+In this scenario, the animals are in the MIDA, and can make three transitions: 1) they can remain in MIDA; 2) move south to MIDA; or 3) move North. The answers are in `dfList[[5]]`: 
+
+```{r q13dat}
+dfList[[5]]
+```
+
+This one is a bit more straightforward. We have the MIDA to MIDA transition - `moveMIDAtoMIDA` - that does not need to be split. Then we have the MIDA to SEUS - `moveMIDAtoSEUS` - which also does not need to be split. Finally, we have the MIDA to Northern regions - `moveMIDAtoNorthern` - which does need to be split.
+
+__Question 14__ - Consider a population of 100 adult __male__ right whales that are present in the southeastern United States during December and move _north_ to the mid-Atlantic during January.
+
+In this scenario, the animals are in the SEUS and can make one of two transitions. The answers are in `dfList[[6]]`. 
+
+```{r q14dat}
+dfList[[6]]
+```
+
+So far this is the most straightforward, as neither of the questions need to be split. We have animals starting in the SEUS, and can either remain - `moveSEUStoSEUS` - or move north to MIDA - `moveSEUStoMIDA`
+
+****
+__Summary__ ok then, what all do we have for each of the 6 questions? For __questions 9 and 12,__ all the answers need to be split. For example, we have for Question 9, expert 6: `Beta(35, 4)` and that will need to be split into `Beta(5, 0.5714)` for each of the 7 _southern_ transitions. Similarly, we have `Beta(65, 4)`, which will split to `Beta(9.285714, 0.5714)` for each of the 7 _remaining_ transitions.
+
+For __questions 10 and 13,__ we need to split just one of the transitions - the `moveMIDAtoNorthern` answer. For question 10, expert 6, we'd go from `Beta(20, 4)` to `Beta(2.8571429, 0.5714286)` for transition from MIDA to each of the 7 Northern regions.
+
+For __questions 11 and 14,__ we do not need to split any transitions. They can be assembled as is.
+
+*****
+Now that we've gone through that, let's start in on assembling the data into a form that we can use within the sampler. That means taking these individual Beta distributions, and assembling one Dirichlet.
+
+__Step 1__ Split the Betas
+
+The data are stored in the `dfList.rda` data object. What we want, then, is a data structure that will allow us to easily extract from this and apply it to the matrix prior. Let's assume that we have once slice of a (9 * 9 * 12) array. If we ignore all of Philip Hamilton's priors, that will leave us with something like this:
+
+```{r showFlatPrior}
+regNorth <- regID[!regID %in% c('MIDA', 'SEUS')] # this vector contains the Northern regions
+nreg <- length(regNorth) # This will be used to divide down the Betas
+
+movePrior <- matrix(1, nrow = length(regID), ncol = length(regID))
+rownames(movePrior) <- colnames(movePrior) <- regID
+movePrior2 <- movePrior
+movePrior
+```
+
+****
+__However__ this raises a question - namely what do we want the flat prior values to be? I've started at 1, but perhaps it should be lower? One reason I ask this, is that as you'll see in the Northern to Northern transitions, you can end up with prior values << 1.
+
+****
+
+
+Back to our reality. Each time through the loop, we'll sample an expert, and populate `movePrior`. Let's show this for one expert for each of these two questions. Note that in the loop we'll sample the `expert` with the $c$ and $K$ machinery previously covered; here I'll just choose one for illustration purposes. 
+
+Recall that we used the following parameterisation for each Beta distribution: $\alpha = n \times m_1$ and $\beta = n - n \times m_1$, where $n$ = `inputConfRaw`, and $m_1$ = `moveNortherntoMIDA / 100`. Obviously, the column corresponding to $m_1$ changes for each question. 
+
+Here are two functions to return these values per each of the `nreg` transitions:
+
+```{r makeBetas}
+betaA <- function(n, m, nreg) {
+  expBeta1a <- (n * m) / nreg
+  expBeta1a
+}
+
+betaB <- function(n, m, nreg) {
+  expBeta1b <- (n - (n * m)) / nreg
+  expBeta1b
+}
+```
+
+
+
+First we'll update elements of `movePrior` with data for the transitions south (North to MIDA). As noted above, the idea is that animals could be in any of the 7 Northern regions and could make a transition to MIDA:
+```{r movePrior_q9part1}
+expert <- 4
+dfList[[1]][which(dfList[[1]]$expert == expert),]
+n <- dfList[[1]]$inputConfRaw[which(dfList[[1]]$expert == expert)]
+m <- dfList[[1]]$moveNortherntoMIDA[which(dfList[[1]]$expert == expert)] / 100
+expBeta1a <- betaA(n, m, nreg)
+expBeta1b <- betaB(n, m, nreg)
+movePrior[rownames(movePrior) == 'MIDA', colnames(movePrior) %in% regNorth] <- expBeta1a
+movePrior
+```
+
+And then adding in the North to North transitions:
+```{r movePrior_q9part2}
+n <- dfList[[1]]$inputConfRaw[which(dfList[[1]]$expert == expert)]
+m <- dfList[[1]]$moveNortherntoNorthern[which(dfList[[1]]$expert == expert)] / 100
+expBeta1a <- betaA(n, m, nreg)
+expBeta1b <- betaB(n, m, nreg)
+diag(movePrior)[which(rownames(movePrior) %in% regNorth)] <- expBeta1a
+movePrior
+```
+
+OK, that was `dfList[[1]]`, i.e. Question 9, what does the process and result look like for `dfList[[2]]`, i.e. Question 10? Recall from above that we need to split the MIDA to Northern transitions `moveMIDAtoNorthern`, because it could go from MIDA to each of 7 areas in the North.
+
+First for the remaining in MIDA transition (i.e., MIDA to MIDA):
+```{r movePrior_q10part1}
+expert2 <- 1
+dfList[[2]][which(dfList[[2]]$expert == expert2),]
+n <- dfList[[2]]$inputConfRaw[which(dfList[[2]]$expert == expert2)]
+m <- dfList[[2]]$moveMIDAtoMIDA[which(dfList[[2]]$expert == expert2)] / 100
+expBeta1a <- betaA(n, m, nreg)
+expBeta1b <- betaB(n, m, nreg)
+movePrior2[rownames(movePrior2) == 'MIDA', rownames(movePrior2) == 'MIDA'] <- expBeta1a
+movePrior2
+```
+
+And then adding in the MIDA to SEUS transition:
+```{r movePrior_q10part2}
+n <- dfList[[2]]$inputConfRaw[which(dfList[[2]]$expert == expert2)]
+m <- dfList[[2]]$moveMIDAtoSEUS[which(dfList[[2]]$expert == expert2)] / 100
+expBeta1a <-betaA(n, m, nreg)
+expBeta1b <- betaB(n, m, nreg)
+movePrior2[rownames(movePrior2) == 'SEUS', colnames(movePrior2) == 'MIDA'] <- expBeta1a
+movePrior2
+```
+
+And finally, the ones that need to be split:
+```{r movePrior_q10part3}
+n <- dfList[[2]]$inputConfRaw[which(dfList[[2]]$expert == expert2)]
+m <- dfList[[2]]$moveMIDAtoNorthern[which(dfList[[2]]$expert == expert2)] / 100
+expBeta1a <- betaA(n, m, nreg)
+expBeta1b <- betaB(n, m, nreg)
+movePrior2[rownames(movePrior2) %in% regNorth, colnames(movePrior2) == 'MIDA'] <- expBeta1a
+movePrior2
+```
+
+Note above that the splitting we assign the split value to all of the regions in `regNorth`
+
+Let's examine them together to see if the differences make sense given the structure of the questions.
+
+```{r comparePriors}
+dfList[[1]][dfList[[1]]$expert == expert, ]
+movePrior
+dfList[[2]][dfList[[2]]$expert == expert2, ]
+movePrior2
+```
+
+So this seems to make sense to me. For expert 4 in the first answer, they had a majority of whales staying in the northern regions (30 going south, 70 remaining). So all of the diagonals are 0.7, and indeed higher than the transitions to MIDA. The matrix is set up as from columns to rows. So the MIDA row has been populated with 0.3 for the _from_ Northern _to_ MIDA transitions. Their confidence in their answers was low (7). 
+
+In contrast for expert 1 in the next question, they had much higher confidence - so we expect the values in the prior to be higher, and indeed they are. Also, the individual has equal probability of MIDA to MIDA as they do with MIDA to SEUS; those values are identical at 4.29. Since the number of whales must sum to 100, the value moving North is smaller (20), and that's reflected in the matrix. 
+
+Ok, so it at least passes the intuition test. Now we need to assemble all of these into one matrix/array/list. This will be static because these priors never change. However, they should be in the same form as the data, which is an array, because I'm going to have to add them together. I'm not 100% sure it matters all that much, because I'm just going to be sending them both to `calcC()`.
+
+### Testing the Algorithm with Data = 0
+The goal here is to simply substitute 0 values in for all the data in `maleDat`. If the sampling algorithm is working correctly, then the posterior should simply be the same as the prior (`malePrior`).
+
