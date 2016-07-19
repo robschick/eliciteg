@@ -20,9 +20,14 @@ Here I show how to take answers from one expert that came in the form of a Beta 
 In this last question we lump 7 different regions north of the MIDA into one. This was done to reduce the congitive load on the experts. However, because the model from Schick et al. (2013) operates with 9 geographic regions, we need to convert from the single Beta back to 7 Beta distributions, which we will then use in the Dirichlet distribution that serves as the prior for the movement transitions. This vignette describes this process.
 
 ## Necessary Background
-Let's say we three possible areas and we ask for all possible transitions between and among these areas. If we do this with a slider, then we can easily generate a full Dirichlet distribution. For example, from area 1 to area 2, 20 out of 100 whales move. From area 1 to area 1, 25 out of 100 whales move. Necessarily, this means that 55 whales move from area 1 to area 3. 
+Let's say we have three possible habitat regions and we ask for all possible transitions between and among these regions. If we do this with a set of linked sliders in the shiny app, then we can easily generate a full Dirichlet distribution. For example, from area 1 to area 2, 20 out of 100 whales move. From area 1 to area 1, 25 out of 100 whales move. Because these are linked and sum to 100, this means that 55 whales move from area 1 to area 3. 
 
-The weight a user assigns to these parameters controls the variance in the individual Dirichlet parameters, i.e. $Dir(0.2, 0.25, 0.55)$ is a very different distribution from $Dir(20, 25, 55)$, that is while their means are the same, the variance is very different:
+The weight a user assigns to these parameters controls the variance in the individual Dirichlet parameters. To illustrate this, let's imagine two Dirichlet distributions: 
+
+1. $Dir(0.2, 0.25, 0.55)$ 
+2. $Dir(20, 25, 55)$ 
+
+While the means of the two distributions are the same (red line), the variance is very different (as can be seen in this figure):
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 library(gtools)
@@ -32,16 +37,21 @@ d1 <- rdirichlet(1000, c(2, 2.5, 5.5))
 d2 <- rdirichlet(1000, c(20, 25, 55))
 d1long <- melt(d1)
 d2long <- melt(d2)
+
+meanDat <- data.frame(value = c(0.2, 0.25, 0.55), Var2 = c(1, 2, 3))
+
 p <- ggplot(d1long, aes(value, group = Var2))+
   geom_histogram()+
   facet_grid(Var2 ~ .)+
   xlim(0, 1)+
+  geom_vline(data=meanDat, aes(xintercept = value), colour="red", lty=3) +
   ggtitle('Dir(0.2, 0.25, 0.55)')
 
 p2 <- ggplot(d2long, aes(value, group = Var2))+
   geom_histogram()+
   facet_grid(Var2 ~ .)+
   xlim(0, 1)+
+  geom_vline(data=meanDat, aes(xintercept = value), colour="red", lty=3) +
   ggtitle('Dir(20, 25, 55)')
 
 p
@@ -65,7 +75,7 @@ $$ b = 8 - a $$
 Finally, 
 $$ a = 2, b = 6. $$
 
-Our toy example, then included 3 transitions to be turned into 7 transitions - the last 5 of which are identical. Say we have three distributions: `Be(4, 20)`, `Be(15, 10)`, and `Be(10, 30)`; after dividing, those will translate to:
+In our toy example, then, we went from 3 transitions to 7 transitions - the last 5 of which are identical. Say we have three distributions: `Be(4, 20)`, `Be(15, 10)`, and `Be(10, 30)`; after dividing the third transition, those will translate to:
 
 1. `Be(4, 20)`
 2. `Be(15, 10)`
@@ -77,8 +87,10 @@ Our toy example, then included 3 transitions to be turned into 7 transitions - t
 
 
 ## Real Worked Example 
+The goal of this section is to take the thinking behind the toy example, and extend it to work with data from the actual elicitation.
+
 ### Partitioning up the Beta Distributions
-Now let's look at taking some real answers for one of the questions above, and turning it into priors for the movement analysis. Looking at one person's answers:
+Let's take real answers for one of the questions above, and turn it into priors for the movement analysis. Here are one person's answers:
 
 ```{r, echo=FALSE, results='asis'}
 df <- data.frame(question = 13, gender = 'MALE', rawConf = 4, scaleConf = 19.8181, mida2mida = 40, mida2seus = 10, mida2northern = 50)
@@ -88,12 +100,12 @@ knitr::kable(df, caption = 'Table 1. Example answers from one expert for one que
 Let's explain these variables and values just a bit for clarification: 
 
 * `rawConf` refers to the value the person put in using the slider (range 1-100).
-* `scaleConf` refers to the number from `rawConf` being rescaled to a new range (1-622), because this was the range of weights we used in the original analysis
+* `scaleConf` refers to the number from `rawConf` being rescaled to a new range (1-622), because this was the range of weights we used in the original analysis (we won't use it in this analysis)
 * `mida2mida` is the number of whales (out of 100) that will remain in the MIDA during the next time period
 * `mida2seus` is the number of whales (out of 100) that will move to the SEUS during the next time period
 * `mida2northern` is the number of whales (out of 100) that will move to the northern regions during the next time period; this is the variable that needs to be split into 7 new beta distributions
 
-How these values then translate into parameters for beta distribution is as follows. We used the following parameterisation: $\alpha = n \times m_1$ and $\beta = n - n \times m_1$, where $n$ = `scaleConf`, and $m_1$ = `mida2mida / 100`. UPDATE - however, this `scaleConf` variable was used to try and match the experts weights with the weights we (Rob Schick and Jim Clark) created to go along with Philip's priors. For the analysis here, we'll just use the `rawConf` values from the experts.
+How these values then translate into parameters for beta distribution is as follows. We used the following parameterisation: $\alpha = n \times m_1$ and $\beta = n - n \times m_1$, where $n$ = `rawConf`, and $m_1$ = `mida2mida / 100`. 
 
 Accordingly, for the first transtion this yields, $\alpha = 4 \times 40 / 100$, or `r 4 * 40 / 100`, and $\beta = 4 - 4 \times 40 / 100$, or `r 4 - 4 * (40/100)`. So for this Beta distribution we would have `Be(1.6, 2.4)`.
 
@@ -119,6 +131,6 @@ We need to assemble the Dirichlet comprised of 9 possible transitions from the 9
 
 $$ n = 1.6 + 0.4 + 0.2857 + 0.2857 + 0.2857 + 0.2857 + 0.2857 + 0.2857 + 0.2857 = 3.999 $$
 
-This allows us to express this experts' Dirichelt prior for these transitions as:
+This allows us to express this experts' Dirichlet prior for these transitions as:
 
 $$Dir(1.6, 0.4, 0.2857, 0.2857, 0.2857, 0.2857, 0.2857, 0.2857, 0.2857).$$
