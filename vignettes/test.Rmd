@@ -53,7 +53,7 @@ This is easy. But what if we have multiple Dirichlet priors from 3 different exp
 
 $$Prior\: = \: \frac{1}{3}f_1^{(0)} +  \frac{1}{3}f_2^{(0)} + \frac{1}{3}f_3^{(0)} $$
 
-The posterior is a mixture of these Dirichlet's, but NOT with $\frac{1}{3}$ weights. Now we explain the proper weighting.
+The __posterior__ is a mixture of these Dirichlet's, but NOT with $\frac{1}{3}$ weights. Now we explain the proper weighting.
 
 Say the prior weights can be written as:
 
@@ -98,7 +98,7 @@ $$ f_2^{(1)} = Dir(d_{21}^{(0)} + 15, d_{22}^{(0)} + 25, d_{23}^{(0)} + 60, \ldo
 We repeat this many times, and then build up the mixture distribution.
 
 ## Worked Example
-Here we'll start with a very simple example: 2 experts and three categories. The real trial will include an expanded number of experts, but we'll keep it compact for the sake of the example. Here are the data along with each of the expert's Dirichlet's. The experts have low, and high confidence, respectively. We create these $n$ by simply assigning the data:
+Here we'll start with a very simple example: 2 experts and three categories. The real trial will include an expanded number of experts, but we'll keep it compact for the sake of the example. Here are the data along with each of the expert's Dirichlet's. The experts have low, and high confidence, respectively. We create these priors by simply assigning the data to `dir1` and `dir2`:
 
 ```{r}
 library(ggplot2)
@@ -138,7 +138,7 @@ p <- ggplot(data = dflongPrior, aes(value, group = expert, fill = expert))+
 p
 ```
 
-First we'll write the function to accept the prior and the data and return the normalising constant $C_j$:
+Ok, to make this easier, we'll write the function to accept the prior and the data and return the normalising constant $C_j$ for each expert:
 
 ```{r, returnC}
 
@@ -148,7 +148,7 @@ calcC <- function(data, prior){
   pp <- as.vector(prior)
   if(length(dd) != length(pp)) stop('Data and prior lengths do not match')
    
-  logc <- lgamma(sum(pp))-sum(lgamma(pp)) - (lgamma(sum(pp + data))-sum(lgamma(pp + data)))
+  logc <- lgamma(sum(pp)) - sum(lgamma(pp)) - (lgamma(sum(pp + data)) - sum(lgamma(pp + data)))
 
   return(exp(logc))
 }
@@ -162,9 +162,9 @@ To build that up for each expert we would have this in R code:
 ```{r}
 c1 <- calcC(simDat, dir1)
 c2 <- calcC(simDat, dir2)
-nex <- 2
-k1 <- (1/nex * c1) / (1/nex * c1 + 1/nex * c2)
-k2 <- (1/nex * c2) / (1/nex * c1 + 1/nex * c2)
+numexp <- 2
+k1 <- (1 / numexp * c1) / (1 / numexp * c1 + 1 / numexp * c2)
+k2 <- (1 / numexp * c2) / (1 / numexp * c1 + 1 / numexp * c2)
 
 K <- c(k1, k2)
 ```
