@@ -9,4 +9,49 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-This builds on `dirichletSampler.Rmd`, which was starting to get a bit unwieldy. Here I'm going to simulate a posterior using actual priors and data. For data, I'll start with the data = 0 trick that Michail suggests. Then we'll use actual data.
+This builds on `dirichletSampler.Rmd`, which was starting to get a bit unwieldy. Here I'm going to simulate a posterior using actual priors and data. For data, I'll start with the data = 0 test that Michail suggests. Then we'll use actual data. Right now I have this function:
+
+```{r calcC}
+calcC <- function(data, prior){
+
+  dd <- as.vector(data)
+  pp <- as.vector(prior)
+  if(length(dd) != length(pp)) stop('Data and prior lengths do not match')
+   
+  logc <- lgamma(sum(pp)) - sum(lgamma(pp)) - (lgamma(sum(pp + data)) - sum(lgamma(pp + data)))
+
+  return(exp(logc))
+}
+```
+
+And I have a list (`allqs`) with all the individual priors. We'll make some data with 0s, and show an example of how to use this with two different experts. 
+
+```{r}
+dat <- matrix(1, nrow = 9, ncol = 9)
+calcC(dat, allqs[[1]][[1]])
+calcC(dat, allqs[[1]][[6]])
+```
+
+Ok, well, we've learned one thing that with data = 0, than we just get 1 returned from the function, which means that we'll not choose any of the individuals with any probability. Is that right?
+
+Anyway, to get all the c values, I have to run `lapply()` to get the values for each expert-prior / data combination.
+
+```{r}
+cvec <- rapply(allqs, function(x) calcC(dat, x), how = 'list')
+```
+
+Ok, that's the c values, now we need to assemble K. For example, here's the algorithm that would work.
+
+```{r, eval=FALSE}
+numexp <- length(cvec[[1]])
+up1 <- unlist(cvec[[1]][1])
+up2 <- unlist(cvec[[1]][2])
+up3 <- unlist(cvec[[1]][3])
+down <- (1 / numexp) * sum(unlist(cvec[[1]]))
+k1 <- up1 / down
+k2 <- up2 / down
+k3 <- up3 / down
+
+K <- c(k1, k2, k3)
+```
+
