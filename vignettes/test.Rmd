@@ -140,7 +140,7 @@ p
 
 Ok, to make this easier, we'll write the function to accept the prior and the data and return the normalising constant $C_j$ for each expert:
 
-```{r, returnC}
+```{r returnC}
 
 calcC <- function(data, prior){
 
@@ -171,7 +171,7 @@ K <- c(k1, k2)
 
 With those assembled, we now want to sample according to probability $K$, which is:
 
-```{r, showK}
+```{r showK}
 round(K, 3)
 ```
 
