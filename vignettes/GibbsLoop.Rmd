@@ -1,0 +1,12 @@
+---
+title: "Calculating Dirichlet Mixtures with Actual Data"
+author: "Rob Schick, PhD"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Calculating Dirichlet Mixtures with Actual Data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+This builds on `dirichletSampler.Rmd`, which was starting to get a bit unwieldy. Here I'm going to simulate a posterior using actual priors and data. For data, I'll start with the data = 0 trick that Michail suggests. Then we'll use actual data.
