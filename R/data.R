@@ -112,7 +112,7 @@
 #' }
 "dfList"
 
-#' Reformatted Priors from Round Two of Expert Elicitation of Right Whale Movement - June 2015
+#' Parsed-out Reformatted Priors from Round Two of Expert Elicitation of Right Whale Movement - June 2015
 #'
 #' A recursive list that holds the reformatted priors from each individual
 #' expert for each question. There are 6 elements in the list, corresponding
@@ -125,3 +125,13 @@
 #'
 #' @format A recursive list with 6 elements, each of which is an 8 element list
 "allqs"
+
+#' Squashed Reformatted Priors from Round Two of Expert Elicitation of Right Whale Movement - June 2015
+#'
+#' A recursive list that holds the reformatted priors from each individual
+#' expert for each sex. In \code{allqs} I have 6 elements each of which
+#' contains 8 experts. However, what I really want is to combine those 6 into
+#' two elements - one for each gender. That is what this list provides.
+#'
+#' @format A recursive list with 2 elements, each of which is an 8 element list
+"priorList"
