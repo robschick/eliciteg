@@ -3,12 +3,15 @@ Type: Package
 Title: What the Package Does (Title Case)
 Version: 0.1
 Date: 2015-11-11
-Author:Rob Schick, PhD
+Author: Rob Schick, PhD
 Maintainer: Rob Schick <robschick@gmail.com>
 Description: More about what it does (maybe more than one line)
 License: What license is it under?
 LazyData: TRUE
 Imports:
-  gtools
-Suggests: knitr
+    gtools
+Suggests:
+    knitr,
+    rmarkdown
 VignetteBuilder: knitr
+RoxygenNote: 5.0.1
