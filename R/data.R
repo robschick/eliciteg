@@ -111,3 +111,17 @@
 #' \item question: the number of each question ("q9round2", "q10round2", "q11round2", "q12round2", "q13round2", "q14round2")
 #' }
 "dfList"
+
+#' Reformatted Priors from Round Two of Expert Elicitation of Right Whale Movement - June 2015
+#'
+#' A recursive list that holds the reformatted priors from each individual
+#' expert for each question. There are 6 elements in the list, corresponding
+#' to each of the 6 questions. Within each of these 6 elements, there are
+#' 8 elements, corresponding to each of the 8 experts. So there are 48
+#' elements in total that we'll use to choose priors as we iterate through
+#' the gibbs loop, i.e. they are the inputs to calculating the c coefficients
+#' and then the K coefficients. We then use the Kth prior each time through
+#' the loop.
+#'
+#' @format A recursive list with 6 elements, each of which is an 8 element list
+"allqs"
