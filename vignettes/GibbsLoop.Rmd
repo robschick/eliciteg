@@ -67,9 +67,24 @@ k8 <- up8 / down
 K <- c(k1, k2, k3, k4, k5, k6, k7, k8)
 ```
 
+here's the slightly more R-ish way, in the sense that it is vectorised:
+
 ```{r}
 upq1 <- (1 / numexp) * unlist(cvec[[1]])
-down <- (1 / numexp) * sum(upq1)
+down <- (1 / numexp) * sum(unlist(cvec[[1]]))
 kq1 <- upq1 / down
+```
+
+Now I should be able to capture this with `lapply()`.
+
+```{r calcK}
+calcK <- function(cdat){
+  numexp <- length(unlist(cdat))
+  up <- (1 / numexp) * unlist(cdat)
+  down <- (1 / numexp) * sum(unlist(cdat))
+  up / down
+}
+
+klist <- lapply(cvec, function(x) calcK(x))
 ```
 
