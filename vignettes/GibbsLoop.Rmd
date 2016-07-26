@@ -44,19 +44,31 @@ Ok, that's the c values, now we need to assemble K. For example, here's the algo
 
 ```{r, eval=FALSE}
 numexp <- length(cvec[[1]])
-up1 <- unlist(cvec[[1]][1])
-up2 <- unlist(cvec[[1]][2])
-up3 <- unlist(cvec[[1]][3])
+up1 <- (1 / numexp) * unlist(cvec[[1]][1])
+up2 <- (1 / numexp) * unlist(cvec[[1]][2])
+up3 <- (1 / numexp) * unlist(cvec[[1]][3])
+up4 <- (1 / numexp) * unlist(cvec[[1]][4])
+up5 <- (1 / numexp) * unlist(cvec[[1]][5])
+up6 <- (1 / numexp) * unlist(cvec[[1]][6])
+up7 <- (1 / numexp) * unlist(cvec[[1]][7])
+up8 <- (1 / numexp) * unlist(cvec[[1]][8])
+
 down <- (1 / numexp) * sum(unlist(cvec[[1]]))
 k1 <- up1 / down
 k2 <- up2 / down
 k3 <- up3 / down
+k4 <- up4 / down
+k5 <- up5 / down
+k6 <- up6 / down
+k7 <- up7 / down
+k8 <- up8 / down
 
-K <- c(k1, k2, k3)
+
+K <- c(k1, k2, k3, k4, k5, k6, k7, k8)
 ```
 
 ```{r}
-upq1 <- unlist(cvec[[1]])
+upq1 <- (1 / numexp) * unlist(cvec[[1]])
 down <- (1 / numexp) * sum(upq1)
 kq1 <- upq1 / down
 ```
