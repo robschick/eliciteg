@@ -91,7 +91,7 @@ klist <- lapply(cvec, function(x) calcK(x))
 
 Ok, so that's done, now what is next. I need to use these lists to sample $k_i$, and then to use that to choose the prior. Here it is for one question using Jim's algorithm.
 
-```{r simpleGibbs}
+```{r simpleGibbsfx}
 nreg <- length(regID)
 
 idx <- which(rmultinom(1, 1, klist[[1]]) == 1)
@@ -104,5 +104,26 @@ post <- di / matrix(colSums(di), nreg, nreg, byrow = T)
 colnames(post) <- row.names(post) <- regID
 round(post, 3)
 
+```
+
+```{r simpleGibbs}
+sumh <- post * 0
+colnames(sumh) <- row.names(sumh) <- regID
+question <- 6
+ng <- 10
+for(i in 1:ng){
+  idx <- which(rmultinom(1, 1, klist[[question]]) == 1)
+  print(idx)
+  prior <- matrix(data = unlist(allqs[[question]][idx]), nrow = length(regID), ncol = length(regID))
+  di <- matrix(rgamma(nreg * nreg, 
+                    shape = dat + prior, 
+                    scale = 1), nreg, nreg) 
+
+  post <- di / matrix(colSums(di), nreg, nreg, byrow = T)  
+  sumh <- sumh + post
+}
+
+movePostprob <- sumh / ng
+round(movePostprob, 3)
 ```
 
