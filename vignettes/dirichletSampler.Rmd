@@ -418,6 +418,6 @@ priorList$males$exp5 <- allqs[[4]][[5]] + allqs[[5]][[5]] + allqs[[6]][[5]]
 priorList$males$exp6 <- allqs[[4]][[6]] + allqs[[5]][[6]] + allqs[[6]][[6]]
 priorList$males$exp7 <- allqs[[4]][[7]] + allqs[[5]][[7]] + allqs[[6]][[7]]
 priorList$males$exp8 <- allqs[[4]][[8]] + allqs[[5]][[8]] + allqs[[6]][[8]]
-devtools::use_data(priorList)
+devtools::use_data(priorList, overwrite = TRUE)
 ```
 
