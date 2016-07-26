@@ -24,7 +24,7 @@ calcC <- function(data, prior){
 }
 ```
 
-And I have a list (`allqs`) with all the individual priors. We'll make some data with 0s, and show an example of how to use this with two different experts. 
+And I have a list (`allqs`) with all the individual priors. We'll make some data with 1s, and show an example of how to use this with two different experts. 
 
 ```{r}
 dat <- matrix(1, nrow = 9, ncol = 9)
@@ -53,5 +53,11 @@ k2 <- up2 / down
 k3 <- up3 / down
 
 K <- c(k1, k2, k3)
+```
+
+```{r}
+upq1 <- unlist(cvec[[1]])
+down <- (1 / numexp) * sum(upq1)
+kq1 <- upq1 / down
 ```
 
