@@ -41,9 +41,10 @@ Anyway, to get all the c values, I have to run `lapply()` to get the values for 
 cvec <- rapply(allqs, function(x) calcC(dat, x), how = 'list')
 ```
 
-Ok, that's the c values, now we need to assemble K. For example, here's the algorithm that would work.
+Ok, that's the c values, now we need to assemble K. For example, here's the algorithm that would work in commented code:
 
 ```{r, eval=FALSE}
+# Get the individual numerators for each of the 8 experts
 numexp <- length(cvec[[1]])
 up1 <- (1 / numexp) * unlist(cvec[[1]][1])
 up2 <- (1 / numexp) * unlist(cvec[[1]][2])
@@ -54,7 +55,10 @@ up6 <- (1 / numexp) * unlist(cvec[[1]][6])
 up7 <- (1 / numexp) * unlist(cvec[[1]][7])
 up8 <- (1 / numexp) * unlist(cvec[[1]][8])
 
+# Get the Standard denominator, which is the same for all 8 experts
 down <- (1 / numexp) * sum(unlist(cvec[[1]]))
+
+# Calculate k_i for each individual expert
 k1 <- up1 / down
 k2 <- up2 / down
 k3 <- up3 / down
@@ -64,19 +68,20 @@ k6 <- up6 / down
 k7 <- up7 / down
 k8 <- up8 / down
 
-
+# Assemble the K vector that will be used in the multinomial sampling
 K <- c(k1, k2, k3, k4, k5, k6, k7, k8)
 ```
 
-here's the slightly more R-ish way, in the sense that it is vectorised:
+Here's the slightly more R-ish way, in the sense that it is vectorised:
 
 ```{r}
+numexp <- length(cvec[[1]])
 upq1 <- (1 / numexp) * unlist(cvec[[1]])
 down <- (1 / numexp) * sum(unlist(cvec[[1]]))
 kq1 <- upq1 / down
 ```
 
-Now I should be able to capture this with `lapply()`, i.e. do it in a really R-ish way.
+Now I should be able to capture this with `lapply()`, i.e. do it in a really R-ish way. First we right the function. What this function will do is loop over each list element, which is itself a list. Take that list, calculate and then return the values for K as a list. `klist` won't be recrusive; instead it's a 6 element list (one for each question). Each element in the list is a length 8 vector that contains the 8 $k_i$'s for each expert. We'll use each list element when sampling the prior.
 
 ```{r calcK}
 calcK <- function(cdat){
@@ -89,12 +94,13 @@ calcK <- function(cdat){
 klist <- lapply(cvec, function(x) calcK(x))
 ```
 
-Ok, so that's done, now what is next. I need to use these lists to sample $k_i$, and then to use that to choose the prior. Here it is for one question using Jim's algorithm.
+Next we sample $k_i$, and then to use that index `idx` to choose the prior, which is a list element out of `allqs`. Here we apply this one time for one question using Jim's algorithm.
 
 ```{r simpleGibbsfx}
 nreg <- length(regID)
 
 idx <- which(rmultinom(1, 1, klist[[1]]) == 1)
+
 prior <- matrix(data = unlist(allqs[[1]][idx]), nrow = length(regID), ncol = length(regID))
 di <- matrix(rgamma(nreg * nreg, 
                     shape = dat + prior, 
@@ -106,6 +112,16 @@ round(post, 3)
 
 ```
 
+That looks good, and now we need to sample within a Gibbs framework. What I'll do here, and elsewhere is to:
+
+1. Initialise an empty matrix `sumh`
+2. set up the number of Gibbs steps `ng`
+3. Within the loop, choose an index
+4. Use that index to choose a prior
+5. Sample from the Dirichlet using Jim's algorithm
+5. Add these values to `sumh`
+6. After the loop, summarise the posterior by dividing by `ng`
+
 ```{r simpleGibbs}
 sumh <- post * 0
 colnames(sumh) <- row.names(sumh) <- regID
@@ -113,7 +129,7 @@ question <- 6
 ng <- 10
 for(i in 1:ng){
   idx <- which(rmultinom(1, 1, klist[[question]]) == 1)
-  print(idx)
+  # print(idx)
   prior <- matrix(data = unlist(allqs[[question]][idx]), nrow = length(regID), ncol = length(regID))
   di <- matrix(rgamma(nreg * nreg, 
                     shape = dat + prior, 
@@ -127,3 +143,4 @@ movePostprob <- sumh / ng
 round(movePostprob, 3)
 ```
 
+Right. Now I need to do it for all questions. In the Gibbs loop, we loop over months and regions.
