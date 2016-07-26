@@ -12,6 +12,7 @@ vignette: >
 This builds on `dirichletSampler.Rmd`, which was starting to get a bit unwieldy. Here I'm going to simulate a posterior using actual priors and data. For data, I'll start with the data = 0 test that Michail suggests. Then we'll use actual data. Right now I have this function:
 
 ```{r calcC}
+library(eliciteg)
 calcC <- function(data, prior){
 
   dd <- as.vector(data)
@@ -75,7 +76,7 @@ down <- (1 / numexp) * sum(unlist(cvec[[1]]))
 kq1 <- upq1 / down
 ```
 
-Now I should be able to capture this with `lapply()`.
+Now I should be able to capture this with `lapply()`, i.e. do it in a really R-ish way.
 
 ```{r calcK}
 calcK <- function(cdat){
@@ -86,5 +87,22 @@ calcK <- function(cdat){
 }
 
 klist <- lapply(cvec, function(x) calcK(x))
+```
+
+Ok, so that's done, now what is next. I need to use these lists to sample $k_i$, and then to use that to choose the prior. Here it is for one question using Jim's algorithm.
+
+```{r simpleGibbs}
+nreg <- length(regID)
+
+idx <- which(rmultinom(1, 1, klist[[1]]) == 1)
+prior <- matrix(data = unlist(allqs[[1]][idx]), nrow = length(regID), ncol = length(regID))
+di <- matrix(rgamma(nreg * nreg, 
+                    shape = dat + prior, 
+                    scale = 1), nreg, nreg) 
+
+post <- di / matrix(colSums(di), nreg, nreg, byrow = T)
+colnames(post) <- row.names(post) <- regID
+round(post, 3)
+
 ```
 
