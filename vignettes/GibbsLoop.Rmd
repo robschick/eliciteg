@@ -130,7 +130,7 @@ ng <- 10
 for(i in 1:ng){
   idx <- which(rmultinom(1, 1, klist[[question]]) == 1)
   # print(idx)
-  prior <- matrix(data = unlist(allqs[[question]][idx]), nrow = length(regID), ncol = length(regID))
+  prior <- matrix(data = unlist(priorList[['females']][idx]), nrow = length(regID), ncol = length(regID))
   di <- matrix(rgamma(nreg * nreg, 
                     shape = dat + prior, 
                     scale = 1), nreg, nreg) 
