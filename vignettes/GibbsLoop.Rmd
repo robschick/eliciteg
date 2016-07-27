@@ -29,8 +29,8 @@ And I have a list (`allqs`) with all the individual priors. We'll make some data
 
 ```{r}
 dat <- matrix(1, nrow = 9, ncol = 9)
-calcC(dat, allqs[[1]][[1]])
-calcC(dat, allqs[[1]][[6]])
+calcC(dat, priorList[[1]][[1]])
+calcC(dat, priorList[[1]][[6]])
 ```
 
 Ok, well, we've learned one thing that with data = 0, than we just get 1 returned from the function, which means that we'll not choose any of the individuals with any probability. Is that right?
@@ -38,7 +38,7 @@ Ok, well, we've learned one thing that with data = 0, than we just get 1 returne
 Anyway, to get all the c values, I have to run `lapply()` to get the values for each expert-prior / data combination.
 
 ```{r}
-cvec <- rapply(allqs, function(x) calcC(dat, x), how = 'list')
+cvec <- rapply(priorList, function(x) calcC(dat, x), how = 'list')
 ```
 
 Ok, that's the c values, now we need to assemble K. For example, here's the algorithm that would work in commented code:
@@ -81,7 +81,7 @@ down <- (1 / numexp) * sum(unlist(cvec[[1]]))
 kq1 <- upq1 / down
 ```
 
-Now I should be able to capture this with `lapply()`, i.e. do it in a really R-ish way. First we right the function. What this function will do is loop over each list element, which is itself a list. Take that list, calculate and then return the values for K as a list. `klist` won't be recrusive; instead it's a 6 element list (one for each question). Each element in the list is a length 8 vector that contains the 8 $k_i$'s for each expert. We'll use each list element when sampling the prior.
+Now I should be able to capture this with `lapply()`, i.e. do it in a really R-ish way. First we right the function. What this function will do is loop over each list element, which is itself a list. Take that list, calculate and then return the values for K as a list. `klist` won't be recursive; instead it's a 6 element list (one for each question). Each element in the list is a length 8 vector that contains the 8 $k_i$'s for each expert. We'll use each list element when sampling the prior.
 
 ```{r calcK}
 calcK <- function(cdat){

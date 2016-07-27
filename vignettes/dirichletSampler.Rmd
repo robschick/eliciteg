@@ -310,7 +310,7 @@ Not the most elegant way of doing it, I don't think, but it works and is fast en
 nexp <- 8
 nreg <- 9
 nq <- 6
-flatpriorVal <- 0
+flatpriorVal <- 0.001
 
 allqs <- list(q1 = vector('list', nexp),
               q2 = vector('list', nexp),
@@ -342,7 +342,7 @@ expert <- dfList[[listElement]]$expert
 nexp <- length(expert)
 
 for(j in seq_along(1:nexp)){
-  movePrior <- allqs[[listElement]][[j]] * 0
+  movePrior <- allqs[[listElement]][[j]] 
   dfList[[listElement]][which(dfList[[listElement]]$expert == expert[j]),]
   n <- dfList[[listElement]]$inputConfRaw[which(dfList[[listElement]]$expert == expert[j])]
   m <- dfList[[listElement]]$moveNortherntoMIDA[which(dfList[[listElement]]$expert == expert[j])] / 100 # part 1 - Northern to MIDA
@@ -360,7 +360,7 @@ expert <- dfList[[listElement]]$expert
 nexp <- length(expert)
 
 for(j in seq_along(1:nexp)){
-  movePrior <- allqs[[listElement]][[j]] * 0
+  movePrior <- allqs[[listElement]][[j]] 
   n <- dfList[[listElement]]$inputConfRaw[which(dfList[[listElement]]$expert == expert[j])]
   m <- dfList[[listElement]]$moveMIDAtoMIDA[which(dfList[[listElement]]$expert == expert[j])] / 100
   expBeta1a <- betaA(n, m, nreg = 1)
@@ -383,7 +383,7 @@ expert <- dfList[[listElement]]$expert
 nexp <- length(expert)
 
 for(j in seq_along(1:nexp)){
-  movePrior <- allqs[[listElement]][[j]] * 0
+  movePrior <- allqs[[listElement]][[j]] 
   dfList[[listElement]][which(dfList[[listElement]]$expert == expert[j]),]
   n <- dfList[[listElement]]$inputConfRaw[which(dfList[[listElement]]$expert == expert[j])]
   m <- dfList[[listElement]]$moveSEUStoMIDA[which(dfList[[listElement]]$expert == expert[j])] / 100 # part 1 - SEUS to MIDA
@@ -396,6 +396,66 @@ for(j in seq_along(1:nexp)){
 }
 ```
 
+```{r fillMalePrior}
+# Question 12 - requires splitting: 1) northern to mida; 2) northern to northern
+listElement <- 4
+expert <- dfList[[listElement]]$expert
+nexp <- length(expert)
+
+for(j in seq_along(1:nexp)){
+  movePrior <- allqs[[listElement]][[j]]
+  dfList[[listElement]][which(dfList[[listElement]]$expert == expert[j]),]
+  n <- dfList[[listElement]]$inputConfRaw[which(dfList[[listElement]]$expert == expert[j])]
+  m <- dfList[[listElement]]$moveNortherntoMIDA[which(dfList[[listElement]]$expert == expert[j])] / 100 # part 1 - Northern to MIDA
+  m2 <- dfList[[listElement]]$moveNortherntoNorthern[which(dfList[[listElement]]$expert == expert[j])] / 100 # Part 2- Northern to Northern
+  expBeta1a <- betaA(n, m, nreg = nNorthreg)
+  expBeta1a2 <- betaA(n, m2, nreg = nNorthreg * nNorthreg)
+  movePrior[rownames(movePrior) == 'MIDA', colnames(movePrior) %in% regNorth] <- expBeta1a
+  movePrior[rownames(movePrior) %in% regNorth, colnames(movePrior) %in% regNorth] <- expBeta1a2
+  allqs[[listElement]][[j]] <- movePrior
+}
+
+# Question 13 - requires splitting MIDA to Northern transitions `moveMIDAtoNorthern`
+listElement <- 5
+expert <- dfList[[listElement]]$expert
+nexp <- length(expert)
+
+for(j in seq_along(1:nexp)){
+  movePrior <- allqs[[listElement]][[j]]
+  n <- dfList[[listElement]]$inputConfRaw[which(dfList[[listElement]]$expert == expert[j])]
+  m <- dfList[[listElement]]$moveMIDAtoMIDA[which(dfList[[listElement]]$expert == expert[j])] / 100
+  expBeta1a <- betaA(n, m, nreg = 1)
+  movePrior[rownames(movePrior) == 'MIDA', rownames(movePrior) == 'MIDA'] <- expBeta1a
+
+  m2 <- dfList[[listElement]]$moveMIDAtoSEUS[which(dfList[[listElement]]$expert == expert[j])] / 100
+  expBeta1a2 <-betaA(n, m2, nreg = 1)
+  movePrior[rownames(movePrior) == 'SEUS', colnames(movePrior) == 'MIDA'] <- expBeta1a2
+
+  m3 <- dfList[[listElement]]$moveMIDAtoNorthern[which(dfList[[listElement]]$expert == expert[j])] / 100
+  expBeta1a3 <- betaA(n, m3, nreg = nNorthreg)
+  movePrior[rownames(movePrior) %in% regNorth, colnames(movePrior) == 'MIDA'] <- expBeta1a3
+  allqs[[listElement]][[j]] <- movePrior
+}
+
+
+# Question 14 - doesn't require splitting
+listElement <- 6
+expert <- dfList[[listElement]]$expert
+nexp <- length(expert)
+
+for(j in seq_along(1:nexp)){
+  movePrior <- allqs[[listElement]][[j]]
+  dfList[[listElement]][which(dfList[[listElement]]$expert == expert[j]),]
+  n <- dfList[[listElement]]$inputConfRaw[which(dfList[[listElement]]$expert == expert[j])]
+  m <- dfList[[listElement]]$moveSEUStoMIDA[which(dfList[[listElement]]$expert == expert[j])] / 100 # part 1 - SEUS to MIDA
+  m2 <- dfList[[listElement]]$moveSEUStoSEUS[which(dfList[[listElement]]$expert == expert[j])] / 100 # Part 2- SEUS to SEUS
+  expBeta1a <- betaA(n, m, nreg = 1)
+  expBeta1a2 <- betaA(n, m2, nreg = 1)
+  movePrior[rownames(movePrior) == 'MIDA', colnames(movePrior) == 'SEUS'] <- expBeta1a
+  movePrior[rownames(movePrior) == 'SEUS', colnames(movePrior) == 'SEUS'] <- expBeta1a2
+  allqs[[listElement]][[j]] <- movePrior
+}
+```
 
 No we take these split-out elements and add them together to form a 2 element recursive list.
 
