@@ -126,7 +126,7 @@ That looks good, and now we need to sample within a Gibbs framework. What I'll d
 sumh <- post * 0
 colnames(sumh) <- row.names(sumh) <- regID
 question <- 6
-ng <- 10
+ng <- 100
 for(i in 1:ng){
   idx <- which(rmultinom(1, 1, klist[[question]]) == 1)
   # print(idx)
@@ -143,4 +143,33 @@ movePostprob <- sumh / ng
 round(movePostprob, 3)
 ```
 
-Right. Now I need to do it for all questions. In the Gibbs loop, we loop over months and regions.
+Right. Now I need to do it for all questions. In the Gibbs loop, we loop over months and regions. And we have both males and females to update. So let's have different male and female data.
+
+```{r prepMaleFemaleData}
+maleDat <- matrix(data = floor(runif(n = nreg * nreg, min = 0, max = 10)), nrow = 9, ncol = 9)
+femaleDat <- matrix(data = floor(runif(n = nreg * nreg, min = 0, max = 10)), nrow = 9, ncol = 9)
+```
+
+Now we'll try this in a more realistic Gibbs loop for both sexes
+
+```{r femaleMaleGibbs}
+sumh <- post * 0
+colnames(sumh) <- row.names(sumh) <- regID
+summh <- sumh
+question <- 6
+ng <- 100
+for(i in 1:ng){
+  idx <- which(rmultinom(1, 1, klist[[question]]) == 1)
+  # print(idx)
+  prior <- matrix(data = unlist(priorList[['females']][idx]), nrow = length(regID), ncol = length(regID))
+  di <- matrix(rgamma(nreg * nreg, 
+                    shape = dat + prior, 
+                    scale = 1), nreg, nreg) 
+
+  post <- di / matrix(colSums(di), nreg, nreg, byrow = T)  
+  sumh <- sumh + post
+}
+
+movePostprob <- sumh / ng
+round(movePostprob, 3)
+```
