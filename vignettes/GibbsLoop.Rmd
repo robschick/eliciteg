@@ -94,14 +94,14 @@ calcK <- function(cdat){
 klist <- lapply(cvec, function(x) calcK(x))
 ```
 
-Next we sample $k_i$, and then to use that index `idx` to choose the prior, which is a list element out of `allqs`. Here we apply this one time for one question using Jim's algorithm.
+Next we sample $k_i$, and then to use that index `idx` to choose the prior, which is a list element out of `priorList`. Here we apply this one time for one question using Jim's algorithm.
 
 ```{r simpleGibbsfx}
 nreg <- length(regID)
 
 idx <- which(rmultinom(1, 1, klist[[1]]) == 1)
 
-prior <- matrix(data = unlist(allqs[[1]][idx]), nrow = length(regID), ncol = length(regID))
+prior <- matrix(data = unlist(priorList[[1]][idx]), nrow = length(regID), ncol = length(regID))
 di <- matrix(rgamma(nreg * nreg, 
                     shape = dat + prior, 
                     scale = 1), nreg, nreg) 
@@ -125,7 +125,7 @@ That looks good, and now we need to sample within a Gibbs framework. What I'll d
 ```{r simpleGibbs}
 sumh <- post * 0
 colnames(sumh) <- row.names(sumh) <- regID
-question <- 6
+question <- 1
 ng <- 100
 for(i in 1:ng){
   idx <- which(rmultinom(1, 1, klist[[question]]) == 1)
@@ -143,33 +143,53 @@ movePostprob <- sumh / ng
 round(movePostprob, 3)
 ```
 
-Right. Now I need to do it for all questions. In the Gibbs loop, we loop over months and regions. And we have both males and females to update. So let's have different male and female data.
+Right. Now I need to do it for both sexes In the Gibbs loop, we loop over months and regions. And we have both males and females to update. So let's have different male and female data:
 
 ```{r prepMaleFemaleData}
 maleDat <- matrix(data = floor(runif(n = nreg * nreg, min = 0, max = 10)), nrow = 9, ncol = 9)
 femaleDat <- matrix(data = floor(runif(n = nreg * nreg, min = 0, max = 10)), nrow = 9, ncol = 9)
 ```
 
-Now we'll try this in a more realistic Gibbs loop for both sexes
+Now we'll try this in a more realistic Gibbs loop for both sexes; first females:
 
-```{r femaleMaleGibbs}
+```{r femaleGibbs}
 sumh <- post * 0
 colnames(sumh) <- row.names(sumh) <- regID
-summh <- sumh
-question <- 6
+summh <- sumh # males
+question <- 1
 ng <- 100
 for(i in 1:ng){
   idx <- which(rmultinom(1, 1, klist[[question]]) == 1)
-  # print(idx)
+  
   prior <- matrix(data = unlist(priorList[['females']][idx]), nrow = length(regID), ncol = length(regID))
   di <- matrix(rgamma(nreg * nreg, 
-                    shape = dat + prior, 
+                    shape = femaleDat + prior, 
                     scale = 1), nreg, nreg) 
 
   post <- di / matrix(colSums(di), nreg, nreg, byrow = T)  
   sumh <- sumh + post
 }
 
-movePostprob <- sumh / ng
-round(movePostprob, 3)
+femalemovePostprob <- sumh / ng
+round(femalemovePostprob, 3)
+```
+
+
+```{r maleGibbs}
+question <- 2
+ng <- 100
+for(i in 1:ng){
+  idx <- which(rmultinom(1, 1, klist[[question]]) == 1)
+  
+  prior <- matrix(data = unlist(priorList[['males']][idx]), nrow = length(regID), ncol = length(regID))
+  di <- matrix(rgamma(nreg * nreg, 
+                    shape = maleDat + prior, 
+                    scale = 1), nreg, nreg) 
+
+  post <- di / matrix(colSums(di), nreg, nreg, byrow = T)  
+  summh <- summh + post
+}
+
+malemovePostprob <- summh / ng
+round(malemovePostprob, 3)
 ```
