@@ -1,0 +1,162 @@
+---
+title: "Explaining the Data Expert Issue"
+author: "Rob Schick"
+date: "`r Sys.Date()`"
+output: rmarkdown::word_document
+vignette: >
+  %\VignetteIndexEntry{Explaining the Data Expert Issue}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+Hi Michail - I've made good progress on folding in the multiple experts into the Gibbs sampler that we've written as part of the right whale analysis. I got it to work with no obvious problems when I used simulated data but with actual priors. However when I got to the point of using actual data and actual priors, I am running into issues. These are primarily related to the fact that with actual data, I'm getting 0 values returned for the `c` coefficient that is used to assemble the `K` probability vector.
+
+Here's my pseudo code for the loop. Recall that data are being imputed at each iteration - hence the need for sampling.
+
+1. If the month of interest == December (the only month for which we elicted answers), calculate and store the `c` value for each of 8 experts
+2. Use these values to assemble the `K` probability vector
+3. Sample from `rmultinom()` using `K`
+4. Use the $k^{th}$ experts' prior
+5. Sample from the Dirichlet
+
+In `R` code, that looks like this:
+
+```{r exampleSampler, eval=FALSE}
+for(k in 1:12){
+    malePrior <- moveMale[, , k]
+    femalePrior <- moveFem[, , k]
+
+    # sampling for the experts' prior if the month == December
+    if(k == 12){
+      # create C - combined from data and priors
+      cvecM <- lapply(priorList$males, function(x) calcC(maleMove[, , k], x))
+      cvecF <- lapply(priorList$females, function(x) calcC(femMove[, , k], x))
+
+      # create K - combined from C
+      klistM <- lapply(cvecM, function(x) calcK(x))
+      klistF <- lapply(cvecF, function(x) calcK(x))
+
+      # Then sample to choose the prior:
+      idx <- which(rmultinom(1, 1, klistM) == 1)
+      malePrior <- matrix(data = unlist(priorList[['males']][idx]), nrow = length(regID), ncol = length(regID))
+
+      idx <- which(rmultinom(1, 1, klistF) == 1)
+      femalePrior <- matrix(data = unlist(priorList[['females']][idx]), nrow = length(regID), ncol = length(regID))
+    }
+
+    di <- matrix(rgamma(nreg * nreg, shape = maleMove[, , k] +
+                          malePrior, scale = 1), nreg, nreg)
+    maleMoveProb[, , k] <- di / matrix(colSums(di), nreg, nreg, byrow = T)
+
+    di <- matrix(rgamma(nreg * nreg, shape = femMove[, , k] +
+                          femalePrior, scale = 1), nreg, nreg)
+    femMoveProb[, , k] <- di / matrix(colSums(di), nreg, nreg, byrow = T)
+
+  }
+```
+
+Recall that for the first run, we'll have flat priors for all months except December. Once we get this working, we can compare these with Philip's existing priors. But to start with, we'll use the flat ones. So let's look at some values and functions to explain this a bit more.
+
+# Assembling the Prior - Logic
+The way the algorithm works in the code right now is that we have data (`maleMove`) being updated at each turn, and we have a prior, e.g. `moveMale`. Both of these are 9 by 9 by 12 arrays, corresponding to 9 regions, and 12 monthly transitions. So you can see the loop is over 1:12.
+
+In the runs to date, those just using Philip's priors, the prior never changes. However in this run, we'll need to choose an experts prior based on the machinery that we've worked out previously. For January through November, this static prior will be set to `malePrior` or `femalePrior`. 
+
+I then have an `if()` statement to incorporate the machinery to bring in the new prior. The logic is, if it's December, then loop over the priors and calculate `c`. In particular, the priors are stored in a recursive list called `priorList`, and I use `lapply()` to calculate `c` with the current month's data:
+
+```{r, eval=FALSE}
+cvecM <- lapply(priorList$males, function(x) calcC(maleMove[, , k], x))
+```
+
+The function I use is `calcc()`:
+
+```{r}
+library(eliciteg)
+calcC <- function(data, prior){
+
+  dd <- as.vector(data)
+  pp <- as.vector(prior)
+  if(length(dd) != length(pp)) stop('Data and prior lengths do not match')
+   
+  logc <- lgamma(sum(pp)) - sum(lgamma(pp)) - (lgamma(sum(pp + data)) - sum(lgamma(pp + data)))
+
+  return(exp(logc))
+}
+```
+
+With that assembled, I then call `lapply()` again to assemble the `K` vector of probabilities:
+
+```{r, eval=FALSE}
+klistM <- lapply(cvecM, function(x) calcK(x))
+```
+
+where, `calcK` is:
+
+```{r}
+calcK <- function(cdat){
+  numexp <- length(unlist(cdat))
+  up <- (1 / numexp) * unlist(cdat)
+  down <- (1 / numexp) * sum(unlist(cdat))
+  up / down
+}
+```
+
+
+# Assembling the Prior - Data
+That makes sense to me, and works with simulated data. For example, here I have a matrix of all 1's:
+
+```{r}
+data <- matrix(1, nrow = 9, ncol = 9)
+data
+```
+
+And using two real priors:
+
+```{r}
+prior1 <- priorList$males$exp7
+prior2 <- priorList$males$exp4
+prior1
+```
+
+...we calculate `c`:
+
+```{r}
+c1 <- calcC(data, prior1)
+c2 <- calcC(data, prior2)
+```
+
+And then `K`:
+
+```{r}
+kvec <- calcK(cdat = c(c1, c2))
+kvec
+```
+
+Ok, Expert 7 looks to swamp the answers, but we are getting reasonable results.
+
+# Sampling with Real Data
+That gave me confidence, but when I started to implement this with real data, it fell apart straight away. Here's a slice of real data from one run:
+
+```{r}
+data <- maleEx
+data
+```
+
+When I try to derive `c`, I get 0's, which will then return NaN from `calcK`:
+
+```{r}
+c1 <- calcC(data, prior1)
+c2 <- calcC(data, prior2)
+```
+
+And then `K`:
+
+```{r}
+kvec <- calcK(cdat = c(c1, c2))
+kvec
+```
+
+What appears to be happening is that the `logc` values are << 0, so when we call `exp(logc)` we get 0. I tried working with gamma, instead of lgamma, but got similar results.
+
+That means I'm now stuck, and want/need to touch base with you to get unstuck.
+
