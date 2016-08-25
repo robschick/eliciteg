@@ -47,7 +47,11 @@ That is one row that has the `c` weight for this individual expert. However I ne
 Here's the initialisation of the output array:
 
 ```{r}
-cmatOut <- matrix(NA, nrow = length(priorList$males), ncol = dim(maleExT)[2])
+cmatOut <- matrix(NA, nrow = length(priorList$males), 
+                  ncol = dim(maleExT)[2],
+                  dimnames = list(c('exp1', 'exp2', 'exp3', 'exp4', 
+                                           'exp5', 'exp6', 'exp7', 'exp8'),
+                                  colnames(maleExT)))
 ```
 
 Note that the rows correspond to the number of experts, while the columns still correspond to the number of regions. With that set up, we can populate it with a nested set of loops:
@@ -62,5 +66,48 @@ for(i in seq_along(1:dim(maleExT)[2])){
 cmatOut
 ```
 
-Next up is to send these on to K.
+## `calcK`
+Next up is to send the results from `cmatOut` on to `calcK` for processing. I'll still do this for the subset of regions just to make sure things are working. Once done, I can expand outward. The way I did this previously was to loop over a list with `lapply`, which I'll replace with `apply` since I no longer have an input lsit. And while I can still use the function the output will no longer be a list, so I'll change the name:
+
+```{r}
+kmat <- apply(cmatOut, 2, function(x) calcK(x))
+kmat
+```
+
+## Sample Individual Experts
+Since that looks good, we can now sample for each expert within the loop. Let's start with males. To do this, I have to first pair down the list to match the number of regions in the example above.
+
+```{r parePriorList}
+priorListMalesT <- lapply(priorList$males, function(x) x[5:9, 5:9])
+```
+
+
+With the dimensions now reduced, we can move on to the sampling. Here I'll simulate a Gibbs loop for males.
+```{r maleGibbs}
+ng <- 100
+nregions <- ncol(kmat)
+post <- matrix(NA, nregions, nregions)  
+summh <- post 
+for(i in seq_along(1:ng)){
+
+    for(j in seq_along(1:nregions)){
+  
+      idx <- which(rmultinom(1, 1, kmat[, j]) == 1) # chooses the expert
+      prior <- priorListMalesT[[idx]][, j] # gets prior for that expert
+    
+      di <- matrix(rgamma(nregions * 1, 
+                    shape = maleExT[, j] + prior, 
+                    scale = 1), nregions, 1) 
+
+      post[, j] <- di / matrix(colSums(di), nregions, 1, byrow = T) 
+
+    } 
+  summh <- summh + post
+}
+
+malemovePostprob <- summh / ng
+round(malemovePostprob, 3)
+```
+
+That looks good as a quick first cut at it. Next up is to do it for all 9 regions.
 
