@@ -15,11 +15,11 @@ Here's my pseudo code for the loop. Recall that data are being imputed at each i
 
 1. If the month of interest == December (the only month for which we elicted answers), calculate and store the `c` value for each of 8 experts
 2. Use these values to assemble the `K` probability vector
-3. Sample from `rmultinom()` using `K`
-4. Use the $k^{th}$ experts' prior
+3. Sample from `rmultinom()` using `K` to get $k_i$
+4. Use the $k_i$ experts' prior
 5. Sample from the Dirichlet
 
-In `R` code, that looks like this:
+In `R` code, that looks like this chunk below. (Note that somewhat confusingly, we're indexing over `k` for the months. So below, `idx` is the same as $k_i$.)
 
 ```{r exampleSampler, eval=FALSE}
 for(k in 1:12){
@@ -38,10 +38,12 @@ for(k in 1:12){
 
       # Then sample to choose the prior:
       idx <- which(rmultinom(1, 1, klistM) == 1)
-      malePrior <- matrix(data = unlist(priorList[['males']][idx]), nrow = length(regID), ncol = length(regID))
+      malePrior <- matrix(data = unlist(priorList[['males']][idx]), 
+                          nrow = length(regID), ncol = length(regID))
 
       idx <- which(rmultinom(1, 1, klistF) == 1)
-      femalePrior <- matrix(data = unlist(priorList[['females']][idx]), nrow = length(regID), ncol = length(regID))
+      femalePrior <- matrix(data = unlist(priorList[['females']][idx]), 
+                            nrow = length(regID), ncol = length(regID))
     }
 
     di <- matrix(rgamma(nreg * nreg, shape = maleMove[, , k] +
@@ -62,13 +64,19 @@ The way the algorithm works in the code right now is that we have data (`maleMov
 
 In the runs to date, those just using Philip's priors, the prior never changes. However in this run, we'll need to choose an experts prior based on the machinery that we've worked out previously. For January through November, this static prior will be set to `malePrior` or `femalePrior`. 
 
-I then have an `if()` statement to incorporate the machinery to bring in the new prior. The logic is, if it's December, then loop over the priors and calculate `c`. In particular, the priors are stored in a recursive list called `priorList`, and I use `lapply()` to calculate `c` with the current month's data:
+I then have an `if()` statement to incorporate the machinery to bring in the new prior. The logic is, if it's December, then loop over the priors to calculate `c` and `k`. In particular, the priors are stored in a recursive list called `priorList`, and I use `lapply()` to calculate `c` with the current month's data:
 
 ```{r, eval=FALSE}
-cvecM <- lapply(priorList$males, function(x) calcC(maleMove[, , k], x))
+cvecM <- lapply(priorList$males, function(x) calcC(maleEx, x))
 ```
 
-The function I use is `calcc()`:
+__UPDATE__ However, after discussion with Michail on 16 August 2016, I need to change this, so only evaluate 1 region at a time. This means that the input to `calcC` will be slightly different. Now I think I want something along these lines:
+
+```{r, eval=FALSE}
+cvecM <- apply(maleEx, 2, function(x) calcC(x, priorList$females$exp1[,1]))
+```
+
+The function I use is `calcC()`:
 
 ```{r}
 library(eliciteg)
@@ -159,4 +167,13 @@ kvec
 What appears to be happening is that the `logc` values are << 0, so when we call `exp(logc)` we get 0. I tried working with gamma, instead of lgamma, but got similar results.
 
 That means I'm now stuck, and want/need to touch base with you to get unstuck.
+
+## Update 
+ok, after discussions with Michail on the 16th, it appears that while my functions are correct, my data input is not. I was sending all of the Dirichlet's to the `calcC` when in fact I think I just want to send each in turn, i.e. I want to loop over columns. So that way I will have the movement probabilities be conditioned upon current location. 
+
+What this looks like in pseudocode is:
+
+1. For reg in nreg
+2. c <- calcC(data[, reg], prior[, reg])
+3. k <- calcK(c)
 
