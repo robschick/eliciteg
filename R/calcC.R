@@ -15,3 +15,17 @@ calcC <- function(data, prior){
 
   return(exp(logc))
 }
+
+
+#' Calculate k probability vector for use in choosing of an experts' prior
+#'
+#' The goal of this function is to pull in all the output from \code{calcC}
+#' to return a K probability vector. This vector will then be used in
+#' conjunction with \code{rmultinom()} to choose an expert's prior, $k_i$.
+#'
+calcK <- function(cdat){
+  numexp <- length(unlist(cdat))
+  up <- (1 / numexp) * unlist(cdat)
+  down <- (1 / numexp) * sum(unlist(cdat))
+  up / down
+}
