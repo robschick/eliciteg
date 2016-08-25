@@ -1,0 +1,14 @@
+---
+title: "Fixing the Data / Multiple Expert Issue"
+author: "Rob Schick, PhD"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Fixing the Data / Multiple Expert Issue}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+In the `multipleExpertProblem` vignette, I raised the issue of how I was struggling to get good c values returned from the `calcC` function, which in return was causing `calcK` to return `NA` values. I showed these to Michail, and he corrected my indexing of the data/prior combo that was going into these functions. Specifically, I was sending the whole 9*9 matrix, when I really wanted to be sending a 1 * 9 vector for both of the data and the prior. 
+
+I tried first tackling this with `mapply()`, but didn't get very far. 
