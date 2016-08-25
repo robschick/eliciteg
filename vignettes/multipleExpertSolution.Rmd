@@ -8,7 +8,59 @@ vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
+```{r, echo=FALSE}
+rm(list = ls())
+library(eliciteg)
+data(moveData)
+```
 
 In the `multipleExpertProblem` vignette, I raised the issue of how I was struggling to get good c values returned from the `calcC` function, which in return was causing `calcK` to return `NA` values. I showed these to Michail, and he corrected my indexing of the data/prior combo that was going into these functions. Specifically, I was sending the whole 9*9 matrix, when I really wanted to be sending a 1 * 9 vector for both of the data and the prior. 
 
-I tried first tackling this with `mapply()`, but didn't get very far. 
+I tried first tackling this with `mapply()`, but didn't get very far. What I want is an matrix with `nrow` = # experts, and `ncol = nreg`. So for one element of that matrix, I'd see something like this:
+
+```{r, eval=FALSE}
+outMat[1, 1] <- calcC(dat[, 1], priorList$males$exp1[, 1])
+```
+
+Here's my first attempt and calculating that for one whole expert and for a pared down data prior dimension to make it a bit easier to see and puzzle through. First the data and prior (from expert 4):
+
+```{r}
+maleExT <- maleEx[5:9, 5:9]
+priorT <- priorList$males$exp4[5:9, 5:9]
+maleExT
+priorT
+```
+
+And then the calculation and output:
+
+```{r}
+cmatOut <- matrix(NA, nrow = 1, ncol = dim(maleExT)[2])
+
+for(i in seq_along(1:dim(maleExT)[2])){
+ cmatOut[, i] <- calcC(maleExT[, i], priorT[, i])
+}
+cmatOut
+```
+
+That is one row that has the `c` weight for this individual expert. However I need an 8 row matrix, with 9 columns. While this is a kludgy way to do this, i.e. with a loop instead of an `apply`-type function, I want to get it right first.
+
+Here's the initialisation of the output array:
+
+```{r}
+cmatOut <- matrix(NA, nrow = length(priorList$males), ncol = dim(maleExT)[2])
+```
+
+Note that the rows correspond to the number of experts, while the columns still correspond to the number of regions. With that set up, we can populate it with a nested set of loops:
+
+```{r}
+for(i in seq_along(1:dim(maleExT)[2])){
+  for(j in seq_along(1:length(priorList$males))){
+    priorT <- priorList$males[[j]][5:9, 5:9]
+    cmatOut[j, i] <- calcC(maleExT[, i], priorT[, i])
+  }
+}
+cmatOut
+```
+
+Next up is to send these on to K.
+
