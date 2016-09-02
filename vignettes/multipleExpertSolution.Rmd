@@ -2,7 +2,7 @@
 title: "Fixing the Data / Multiple Expert Issue"
 author: "Rob Schick, PhD"
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+output: rmarkdown::word_document
 vignette: >
   %\VignetteIndexEntry{Fixing the Data / Multiple Expert Issue}
   %\VignetteEngine{knitr::rmarkdown}
@@ -118,4 +118,111 @@ round(malemovePostprob, 3)
 
 That looks good as a quick first cut at it. Next up is to do it for all 9 regions.
 
+## All 9 Regions for Both Sexes
+I'd pared the size of the issue to try and make sense of these algorithm, which makes sense to me at first glance. Here I'll work with the full size, and work it out for both males and females. For the Gibbs sampler, I need three inputs:
+
+1. `cmatOut`
+2. `kmat`
+3. `data`
+
+(n.b. In this vignette I don't really need to do this in a Gibbs loop, because I'm not imputing the data, however in the actual code we will be imputing the data. So I'll preserve the sampling structure here.)
+
+### Create C Matrix
+This will be the actual `c` matrix. Inputs here are:
+
+1. `maleEx` which is a 9 x 9 matrix of one actual slice of data.
+2. `priorList$males` which is a list with 8 elements, one for each expert, and each element containing the prior for that expert.
+
+```{r}
+cmatOut <- matrix(NA, nrow = length(priorList$males), 
+                  ncol = dim(maleEx)[2],
+                  dimnames = list(c('exp1', 'exp2', 'exp3', 'exp4', 
+                                    'exp5', 'exp6', 'exp7', 'exp8'),
+                                  colnames(maleEx)))
+
+```
+
+```{r}
+for(i in seq_along(1:dim(maleEx)[2])){ # regions
+  for(j in seq_along(1:length(priorList$males))){ #experts
+    priorT <- priorList$males[[j]] #jth expert
+    cmatOut[j, i] <- calcC(maleEx[, i], priorT[, i]) #ith region for data; ith region of jth expert for prior
+  }
+}
+```
+
+### Issues Arising - Again
+At first blush above with the small example this worked, but again, when we have some large data values, things appear to be a bit off. Specifically, for GOM, we end up with all 0 values again for the `cmatOut`, which will be problematic when we send those to `calcK`:
+
+```{r}
+cmatOut[, 2]
+```
+
+And in that column in the data matrix, we have some big observed values - in particular the GOM to GOM transition:
+
+```{r}
+maleEx[, 2]
+```
+
+What is weird, though, is that in JL, we also have some big values for the observed data:
+
+```{r}
+maleEx[, 4]
+```
+
+And yet, we are able to get finite, albeit _very_ small values:
+
+```{r}
+cmatOut[, 4]
+```
+
+I played around with changing a few numbers in the data (see commented lines in the code block that calculate `cmatOut` above), and these will yield finite values for the GOM transition, and all 0s for the JL transition. For example:
+
+```{r}
+data(moveData)
+# I'll show the raw data
+# then change the data
+# then the updated data:
+maleEx
+maleEx[2, 2] <- 10
+maleEx
+
+for(i in seq_along(1:dim(maleEx)[2])){ # regions
+  for(j in seq_along(1:length(priorList$males))){ #experts
+    priorT <- priorList$males[[j]] #jth expert
+    cmatOut[j, i] <- calcC(maleEx[, i], priorT[, i]) #ith region for data; ith region of jth expert for prior
+  }
+}
+cmatOut[, 2]
+```
+
+And then we'll change the values in the JL data column:
+```{r}
+data(moveData)
+# I'll show the raw data
+# then change the data
+# then the updated data:
+maleEx
+maleEx[6, 4] <- 150
+maleEx
+
+for(i in seq_along(1:dim(maleEx)[2])){ # regions
+  for(j in seq_along(1:length(priorList$males))){ #experts
+    priorT <- priorList$males[[j]] #jth expert
+    cmatOut[j, i] <- calcC(maleEx[, i], priorT[, i]) #ith region for data; ith region of jth expert for prior
+  }
+}
+cmatOut[, 4]
+```
+
+
+So I'm not sure what gives here, and could use your thoughts on this.
+
+For reference, here are the two functions I'm using:
+
+```{r}
+calcC
+
+calcK
+```
 
