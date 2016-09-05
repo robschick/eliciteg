@@ -2,57 +2,349 @@
 title: "Elicitation Summary for ONR Report"
 author: "Rob Schick"
 date: "`r Sys.Date()`"
-output: rmarkdown::html_vignette
+output: rmarkdown::word_document
 vignette: >
   %\VignetteIndexEntry{Elicitation Summary for ONR Report}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
-Vignettes are long form documentation commonly included in packages. Because they are part of the distribution of the package, they need to be as compact as possible. The `html_vignette` output type provides a custom style sheet (and tweaks some options) to ensure that the resulting html is as small as possible. The `html_vignette` format:
+# Background
+Here we summarize the current state of the elicitation project. The goal of this analysis is two-fold:
 
-- Never uses retina figures
-- Has a smaller default figure size
-- Uses a custom CSS stylesheet instead of the default Twitter Bootstrap style
+1. To conduct an elicitation within the right whale community regarding movements of individual right whales through the mid-Atlantic. Details of that were summarized in Oedekoven et al. 2015.
+2. To use data generated from that elicitation to explore and quantify the impact of different expert's prior beliefs on posterior estimates of movement. Here we summarize the current state of this second goal.
 
-## Vignette Info
+Movement probabilities in the right whale model detailed in Schick et al. (2013) are sampled from a Dirichlet distribution. A single Dirichlet prior was assembled from one expert - Philip Hamilton of the New England Aquarium. To build on this distribution, we conducted an expert elicitation in the North Atlantic Right Whale community. We did this in order to gather more expert information about the movements of right whales in and around the mid-Atlantic geographic region. Once we had elicited the 8 expert's priors, we need to use them in the right whale model. This will take the form of a mixture distribution of Dirichlet's formed from 8 component distributions. In the Appendix, we describe the statistical theory to assemble this mixture, and then to sample from it. We include R code to explain and support the logic.
 
-Note the various macros within the `vignette` section of the metadata block above. These are required in order to instruct R how to build the vignette. Note that you should change the `title` field and the `\VignetteIndexEntry` to match the title of your vignette.
+# Current State of the Analysis
+We have built an R package to conduct the analysis. This package contains the elicited answers from each of the 8 experts, functions to split the Beta distributions, functions to assemble the component Dirichlet distributions, and vignettes explaining how we sample from the mixture distribution.
 
-## Styles
+Using this package, we have successfully sampled from this mixture distribution in two frameworks:
 
-The `html_vignette` template includes a basic CSS theme. To override this theme you can specify your own CSS in the document metadata as follows:
+1. Using real priors with simulated movement data
+2. Using real priors and a subset of real movement data
 
-    output: 
-      rmarkdown::html_vignette:
-        css: mystyles.css
+The third, and final, framework is to use real priors and the complete movement data set. At present, we are working through problems affiliated with this third framework.
 
-## Figures
+## Initial Frameworks
+For the first two frameworks, we have performed the following steps: 
 
-The figure sizes have been customised so that you can easily put two images side-by-side. 
+1. Taken the raw expert's answers to the elicitation questions and assembled individual Beta distributions
+2. Assembled component Dirichlet distributions for each expert for each of the 6 elicitation questions
+3. Assembled a mixture Dirichlet distribution
+4. Used this prior distribution with different datasets to generate a full posterior distribution
 
-```{r, fig.show='hold'}
-plot(1:10)
-plot(10:1)
+The mechanics of each framework are the same; merely the input data differ. Details of the results from each framework are given in the Appendix. 
+
+## Final Framework
+The last framework is the one we are after - using the mixture distribution along with the full complement of the movement data. However using the approach outlined above and detailed in the Appendix, we are currently working through some unresolved problems. Notably, when the data and priors differ greatly in magnitude, we are getting 0 values calculated for the normalizing constants. These values result in NA values for the posterior weights. One possible solution is to scale the priors, but given the difficulties we have had with this approach in the past we are not sure this is the best approach.
+
+## Summary & Conclusions
+Though we are still working through this last issue, once resovled, the combined elicitation/movement analysis will take the following form. We will examine the impact of four different sets of priors on estimated movement transitions:
+
+1. Flat priors for all transitions
+2. Flat priors for all transitions, save the elicited expert's priors
+3. Philip's priors
+4. Philip's priors plus the elicited expert's priors
+
+Though the number of elicited transitions will be still well short of the full set of possible priors in the model (e.g. 9 regions, 4 sub-population classes, 12 months), we feel these four model runs will give us a good understanding and demonstration of how to use elicited priors in this context. The original model was not constructed with an elicitation in mind, and had it been, we no doubt would have had a much simpler movement component in the model, e.g. 3 geographic regions, 2 sexes, and 4 seasonal transitions. However, that would still amount to 72 possible transitons to elicit, which is a very high number of questions. 
+
+Overall, we feel confident that the analysis will provide a useful and informative addition to the ecological literature on expert elicitation. Though we probably will not have fully enumerated all of the uncertainty around movement in this area with the elicitation answers, we have taken an important first step to filling in knowledge in this critically important geographic area. In addition, the elicitation discussion has clarified a lot of the unknown questions and issues regarding the timing of movements in this area, and the sex-specific differences that remain to be investigated.
+
+
+# Appendix
+In this section we expand on the main text by detailing each step of the analysis. Specifically, we explain how the priors are assembled, how we sample from these in the Gibbs loop, and a summary of the initial results - including the problems we are currently facing.
+
+## Assembling the Priors
+During the elicitation, we asked individual experts for answers to movement transitions among three possible regions - "Northern Regions", "mid-Atlantic (MIDA)", and "Southeastern United States (SEUS)." Though there are 9 total regions, we asked about this reduced set to reduce the cognitive load on the experts. Each prior transition was elicited as a scaled Beta distribution. To use the priors in the model for all 9 geographic regions, we first split the Beta distribution elicited for the "Northern Regions" into 7 individual Beta distributions corresponding to each of the 7 Northern regions, e.g. Bay of Fundy (BOF), Gulf of Main (GOM), etc. Then we assembled a prior Dirichlet distribution for each expert; this took the form of a 9 by 9 by 12 matrix (9 regions, and 12 monthly transitions).
+
+### Assembling the Weights for the Mixture Dirichlet
+We now have 8 expert's priors stored as individual distributions. Because we have 8 priors our posterior will be built as a mixture distribution. Assembling this requires two steps. First, we assemble a series of normalizing constants $c_i$ for each expert. Second, we use these constants to assemble a vector of  $K$ prior weights. We will use this $K$ vector to probabilistically sample each expert's prior at each iteration through the Gibbs sampler.
+
+Formally, this setup is as follows. Let's assume we have a prior with $M$ categories that is a mixture of individual Dirichlet distributions:
+
+$$f^{(0)} = \sum_{j = 1}^J k_j^{(0)} f_j^{(0)} (\pi)$$
+
+$$f^{(0)} = \sum_{j = 1}^J k_j^{(0)} Dir\left( d^{(0)}_{j1}, \ldots, d^{(0)}_{jM} \right)$$
+
+(Note the non-standard notation where the $(0)$ superscript refers to the prior, and later $(1)$ will refer to the posterior.)
+
+To sample from the above distribution, we choose a component distribution $j$ with probability $k_j^{(0)}$. This component distribution would correspond to an individual expert. We then sample from $f_j^{(0)} (\pi)$. Our data are $(n_1, \ldots, n_M)$, and correspond to the number of whales observed in a region. The posterior for each component is given as:
+
+$$ f_j^{(1)} (n) = Dir \left( d^{(1)}_{j1} + n_1, \ldots, d^{(1)}_{jM} + n_M\right ),$$
+
+with normalising constant $C$ given as:
+
+$$ C_j = \frac{\frac{\Gamma \left( \sum^M_{m = 1} (d_{jm}^{(0)})\right)}{\prod^M_{m=1}\Gamma(d_{jm}^{(0)})}}{\frac{\Gamma \left( \sum^M_{m = 1} (d_{jm}^{(0)} + n_m)\right)}{\prod^M_{m=1}\Gamma(d_{jm}^{(0)} + n_m)}}.$$
+
+The overall, i.e. the mixture, posterior is:
+
+$$ f^{(1)} (\pi) = \sum^J_{j=1} k_j^{(1)} f^{(1)}_j (\pi),$$
+
+with 
+
+$$k_j^{(1)} = \frac{k_j^{(0)} C_j}{\sum_{i=1}^J k_j^{(0)} C_j} .$$
+
+To sample the movement probabilities, we first choose a component distribution $j$ with probability $k_j^{(0)}$. We then sample from $f_j^{(1)} (\pi) = Dir \left( d^{(0)}_{j1} + n_1, \ldots, d^{(0)}_{jM} + n_M\right )$, assuming, again, that our data are $(n_1, \ldots, n_M)$.
+
+## Sampling from the Priors During Gibbs Sampling
+Let's work through a toy example with fake data. First, let's assume we have data with $M$ categories $(15, 25, 60, \ldots, 21)$. These $M$ categories correspond to geographic regions, and the values (15, 25, etc.) correspond to the number of whales seen in each region. One Dirichlet prior distribution would be represented as follows:
+
+$$f_1^{(0)} = Dir(d_{11}^{(0)}, d_{12}^{(0)}, \ldots, d_{1M}^{(0)})$$
+
+Then assume we have multiple Dirichlet priors from 3 different experts. This means we have three Dirichlet distributions $D_1, D_2, D_3$. With the data as enumerated above, the prior is 
+
+$$Prior\: = \: \frac{1}{3}f_1^{(0)} +  \frac{1}{3}f_2^{(0)} + \frac{1}{3}f_3^{(0)} $$
+
+The __posterior__ we are after, then, is a mixture of these Dirichlet's, but NOT with $\frac{1}{3}$ weights. We need to calculate these posterior weights, which can be written as:
+
+$$ k^{(0)}_1 = \frac{1}{3}, k^{(0)}_2 = \frac{1}{3}, k^{(0)}_3 = \frac{1}{3}.$$
+
+We have three component posterior Dirichlet's: 
+
+$$ f_1^{(1)} = Dir(d_{11}^{(0)} + 15, d_{12}^{(0)} + 25, d_{13}^{(0)} + 60, \ldots, d_{1M}^{(0)} + 21) $$
+
+$$ f_2^{(1)} = Dir(d_{21}^{(0)} + 15, d_{22}^{(0)} + 25, d_{23}^{(0)} + 60, \ldots, d_{2M}^{(0)} + 21) $$
+
+$$ f_3^{(1)} = Dir(d_{31}^{(0)} + 15, d_{32}^{(0)} + 25, d_{33}^{(0)} + 60, \ldots, d_{3M}^{(0)} + 21) $$
+
+Our new posterior is:  
+
+$$ k^{(1)}_1 f_1^{(1)} + k^{(1)}_2 f_2^{(1)} + k^{(1)}_3 f_3^{(1)}. $$
+
+Next we calculate the weights. To do this we first calculate the normalising constant $C$ for each prior, and then calculate the full prior weight for each of the three distributions.
+
+$$ C_1 = \frac{\frac{\Gamma \left( \sum^M_{m = 1} (d_{1m}^{(0)})\right)}{\prod^M_{m=1}\Gamma(d_{1m}^{(0)})}}{\frac{\Gamma \left( \sum^M_{m = 1} (d_{1m}^{(0)} + n_m)\right)}{\prod^M_{m=1}\Gamma(d_{1m}^{(0)} + n_m)}}, $$
+
+$$ C_2 = \frac{\frac{\Gamma \left( \sum^M_{m = 1} (d_{2m}^{(0)})\right)}{\prod^M_{m=1}\Gamma(d_{2m}^{(0)})}}{\frac{\Gamma \left( \sum^M_{m = 1} (d_{2m}^{(0)} + n_m)\right)}{\prod^M_{m=1}\Gamma(d_{2m}^{(0)} + n_m)}}, $$
+
+$$ C_3 = \frac{\frac{\Gamma \left( \sum^M_{m = 1} (d_{3m}^{(0)})\right)}{\prod^M_{m=1}\Gamma(d_{3m}^{(0)})}}{\frac{\Gamma \left( \sum^M_{m = 1} (d_{3m}^{(0)} + n_m)\right)}{\prod^M_{m=1}\Gamma(d_{3m}^{(0)} + n_m)}}. $$
+
+All three of these are then included in the complete calculation for $K^{(1)}_j$
+
+$$ k^{(1)}_1  = \frac{k^{(0)}_1 C_1}{k^{(0)}_1 C_1 + k^{(0)}_2 C_2 + k^{(0)}_3 C_3} = \frac{\frac{1}{3} C_1}{\frac{1}{3} C_1 + \frac{1}{3} C_2 + \frac{1}{3} C_3},$$
+
+$$ k^{(1)}_2  = \frac{k^{(0)}_2 C_2}{k^{(0)}_1 C_1 + k^{(0)}_2 C_2 + k^{(0)}_3 C_3} = \frac{\frac{1}{3} C_2}{\frac{1}{3} C_1 + \frac{1}{3} C_2 + \frac{1}{3} C_3},$$
+
+$$ k^{(1)}_3  = \frac{k^{(0)}_3 C_3}{k^{(0)}_1 C_1 + k^{(0)}_2 C_2 + k^{(0)}_3 C_3} = \frac{\frac{1}{3} C_3}{\frac{1}{3} C_1 + \frac{1}{3} C_2 + \frac{1}{3} C_3}.$$
+
+The posterior is:  
+
+$$ K^{(1)}_1 f_1^{(1)} + K^{(1)}_2 f_2^{(1)} + K^{(1)}_3 f_3^{(1)}. $$
+
+To sample from this, we first sample posterior 1, 2 or 3 with probability $K$. Let's say we choose 2, then we sample from:
+
+$$ f_2^{(1)} = Dir(d_{21}^{(0)} + 15, d_{22}^{(0)} + 25, d_{23}^{(0)} + 60, \ldots, d_{2M}^{(0)} + 21) $$
+
+We repeat this many times, and then build up the mixture distribution.
+
+
+## Summary of Initial Results
+With the background behind us, we turn to sampling in practice.
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+library(eliciteg)
+data("moveData")
 ```
 
-You can enable figure captions by `fig_caption: yes` in YAML:
+### Simulation
+Using simulated data, we can readily sample from the posterior. We start with real elicited priors and fake data, i.e. a matrix of all 1's:
 
-    output:
-      rmarkdown::html_vignette:
-        fig_caption: yes
-
-Then you can use the chunk option `fig.cap = "Your figure caption."` in **knitr**.
-
-## More Examples
-
-You can write math expressions, e.g. $Y = X\beta + \epsilon$, footnotes^[A footnote here.], and tables, e.g. using `knitr::kable()`.
-
-```{r, echo=FALSE, results='asis'}
-knitr::kable(head(mtcars, 10))
+```{r}
+dat <- matrix(1, nrow = 9, ncol = 9)
+dat
 ```
 
-Also a quote using `>`:
+Next we calculate the constants:
 
-> "He who gives up [code] safety for [code] speed deserves neither."
-([via](https://twitter.com/hadleywickham/status/504368538874703872))
+```{r}
+cvec <- rapply(priorList, function(x) calcC(dat, x), how = 'list')
+```
+
+We then take all of the `c` constants to calculate the prior weights $K$:
+
+```{r calcK}
+klist <- lapply(cvec, function(x) calcK(x))
+```
+
+With these assembled, we now turn to sampling within a Gibbs framework. Here is how one sample would look:
+
+```{r simpleGibbsfx}
+regID <- colnames(maleEx)
+nreg <- length(regID)
+
+idx <- which(rmultinom(1, 1, klist[[1]]) == 1)
+
+prior <- matrix(data = unlist(priorList[[1]][idx]), nrow = length(regID), ncol = length(regID))
+di <- matrix(rgamma(nreg * nreg, 
+                    shape = dat + prior, 
+                    scale = 1), nreg, nreg) 
+
+post <- di / matrix(colSums(di), nreg, nreg, byrow = T)
+colnames(post) <- row.names(post) <- regID
+round(post, 3)
+
+```
+
+Extending this to a full sampling framework, simply requires some more book-keeping with respect to different data structures. The sampling steps are to:
+
+1. Initialise an empty matrix `sumh`
+2. Set up the number of Gibbs steps `ng`
+3. Within the loop, use a multinomial to choose an experts' prior
+4. Sample from the Dirichlet using the algorithm from Schick et al (2013)
+5. Add these values to `sumh`
+6. After the loop, summarise the posterior movement probabilities by dividing by `ng`
+
+
+```{r simpleGibbs}
+sumh <- post * 0
+colnames(sumh) <- row.names(sumh) <- regID
+question <- 1
+ng <- 100
+for(i in 1:ng){
+  idx <- which(rmultinom(1, 1, klist[[question]]) == 1)
+  prior <- matrix(data = unlist(priorList[['females']][idx]), nrow = length(regID), ncol = length(regID))
+  di <- matrix(rgamma(nreg * nreg, 
+                    shape = dat + prior, 
+                    scale = 1), nreg, nreg) 
+
+  post <- di / matrix(colSums(di), nreg, nreg, byrow = T)  
+  sumh <- sumh + post
+}
+
+movePostprob <- sumh / ng
+round(movePostprob, 3)
+```
+
+### Real Data
+We then expanded that simulation to look at real data. In an effort to keep the problem tractable as we work through the analysis, we started with a pared down data set for just one sex and for 5 regions. This was simply to iteratively scale upward in complexity from the simulated data set.
+
+### Pared Down Data Set
+We started with males, and for the data, choose one (imputed) movement dataset from a previous Gibbs sampler. That we, we looked at a model run fit to data, and chose the observed and imputed locations for animals in each of the 9 regions. These data look like this:
+
+```{r exampleData}
+data("moveData")
+maleEx
+```
+
+To work through the sampler, we pared this down to a manageable size:
+
+```{r smallData}
+maleExT <- maleEx[5:9, 5:9]
+maleExT
+```
+
+With the data in place, we can calculate the normalizing constant $C_j$ for each expert, and use that to calculate the posterior weights, $k_j$. As noted above, with a $K$ probability vector, we sample from a multinomial to choose an expert's prior for each iteration through the Gibbs loop.
+
+Here we set up the data, and assemble a matrix to hold the constants.
+
+```{r sampleGibbs}
+cmatOut <- matrix(NA, nrow = length(priorList$males), 
+                  ncol = dim(maleExT)[2],
+                  dimnames = list(c('exp1', 'exp2', 'exp3', 'exp4', 
+                                    'exp5', 'exp6', 'exp7', 'exp8'),
+                                  colnames(maleExT)))
+```
+
+Note that the rows in `cmatOut` correspond to the number of experts, while the columns correspond to the number of regions. With that set up, we can populate it with a nested set of loops:
+
+```{r}
+for(i in seq_along(1:dim(maleExT)[2])){
+  for(j in seq_along(1:length(priorList$males))){
+    priorT <- priorList$males[[j]][5:9, 5:9]
+    cmatOut[j, i] <- calcC(maleExT[, i], priorT[, i])
+  }
+}
+cmatOut
+```
+
+We then calculate the $K$ posterior weights. 
+
+```{r}
+kmat <- apply(cmatOut, 2, function(x) calcK(x))
+kmat
+colSums(kmat)
+```
+
+The output - `kmat` is a matrix where each column is the probability vector (that sums to 1), which we will use to select the expert within the Gibbs loop. We first pare down the list to match the number of regions in the example above. 
+
+```{r parePriorList}
+priorListMalesT <- lapply(priorList$males, function(x) x[5:9, 5:9])
+```
+
+
+With the dimensions now reduced and matched to the data, we can move on to the sampling. Here I'll simulate a Gibbs loop for males.
+
+```{r maleGibbs}
+ng <- 100
+nregions <- ncol(kmat)
+post <- matrix(0, nregions, nregions)  
+summh <- post 
+for(i in seq_along(1:ng)){
+
+    for(j in seq_along(1:nregions)){
+  
+      idx <- which(rmultinom(1, 1, kmat[, j]) == 1) # chooses the expert
+      prior <- priorListMalesT[[idx]][, j] # gets prior for that expert
+    
+      di <- matrix(rgamma(nregions * 1, 
+                    shape = maleExT[, j] + prior, 
+                    scale = 1), nregions, 1) 
+
+      post[, j] <- di / matrix(colSums(di), nregions, 1, byrow = T) 
+
+    } 
+  summh <- summh + post
+}
+
+malemovePostprob <- summh / ng
+round(malemovePostprob, 3)
+```
+
+That is a full Dirichlet posterior that combines all of the information gleaned during the elicitation(s).
+
+
+### Full Data Set
+Next step, is to scale to the full data set. Currently, this is where we are running into issues. 
+
+I'd pared the size of the issue to try and make sense of these algorithm, which makes sense to me at first glance. Here I'll work with the full size, and work it out for both males and females. For the Gibbs sampler, I need three inputs:
+
+1. `cmatOut`
+2. `kmat`
+3. `data`
+
+### Create C Matrix
+We need to first create the `cmatOut` matrix. Inputs to the function (`calcC`) to do this are:
+
+1. `maleEx` which is a 9 x 9 matrix of one actual slice of data.
+2. `priorList$males` which is a list with 8 elements, one for each expert, and each element containing the prior for that expert.
+
+```{r}
+cmatOut <- matrix(NA, nrow = length(priorList$males), 
+                  ncol = dim(maleEx)[2],
+                  dimnames = list(c('exp1', 'exp2', 'exp3', 'exp4', 
+                                    'exp5', 'exp6', 'exp7', 'exp8'),
+                                  colnames(maleEx)))
+
+```
+
+With the matrix assembled we populate it with the $C_j$ weights:
+
+```{r}
+for(i in seq_along(1:dim(maleEx)[2])){ # regions
+  for(j in seq_along(1:length(priorList$males))){ #experts
+    priorT <- priorList$males[[j]] #jth expert
+    cmatOut[j, i] <- calcC(maleEx[, i], priorT[, i]) #ith region for data; ith region of jth expert for prior
+  }
+}
+```
+
+### Issues Arising - Again
+With the small example this appeared to work, but when we have some large data values, problems arise. Specifically, for GOM, we end up with all 0 values again for the `cmatOut`:
+
+```{r}
+cmatOut[, 2]
+```
+
+These 0 values will be returned from `calcK` as NA values for $K$. This will entail _not_ being able to sample from a multinomial to choose each individual's prior. Currently we are working to resolve this issue. When complete, we will sample from the posterior and investigate the effects of these priors on the posterior estimates of movement. 
