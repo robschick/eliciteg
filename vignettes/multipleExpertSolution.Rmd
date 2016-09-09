@@ -82,7 +82,7 @@ colSums(kmat)
 That output, then, is a matrix where each column is the probability vector (that sums to 1), which we will use to select the expert within the Gibbs loop.
 
 ## Sample Individual Experts
-Let's start with males. To do this, I have to first pair down the list to match the number of regions in the example above.
+Let's start with males. To do this, I have to first pare down the list to match the number of regions in the example above.
 
 ```{r parePriorList}
 priorListMalesT <- lapply(priorList$males, function(x) x[5:9, 5:9])
