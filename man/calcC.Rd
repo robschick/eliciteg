@@ -2,13 +2,13 @@
 % Please edit documentation in R/calcC.R
 \name{calcC}
 \alias{calcC}
-\title{Calculate c values for use in the choosing of an experts' prior}
+\title{Calculate raw c values for use in the choosing of an experts' prior}
 \usage{
 calcC(data, prior)
 }
 \description{
-This function calculates c weights that are the first step in
-choosing an individual expert's prior prior to sampling
-from the Dirichlet distribution within the Gibbs loop
+This function calculates raw, i.e. logged c weights that are the first
+step in choosing an individual expert's prior prior to sampling
+from the Dirichlet distribution within the Gibbs loop.
 }
 
