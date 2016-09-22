@@ -210,3 +210,55 @@ Recall that the data for this region was: ```r maleExT[, 1]```
 # Real Data
 Ok, that seems to work with a toy data example for one region. Let's try it with a full 9 * 9 data matrix. Again, we won't use multiple imputation here, though we will in the paper. This is just to see it in action. Note that where above we sampled directly from the Dirichlet, here we'll use a slightly different algorithm. 
 
+We'll remake the two supporting matrices, though not show the code, as it's identical to above (save for the dimensions).
+
+```{r realCandK, echo=FALSE}
+data(moveData)
+cmatOut <- matrix(NA, nrow = length(priorList$males), 
+                  ncol = dim(maleEx)[2],
+                  dimnames = list(c('exp1', 'exp2', 'exp3', 'exp4', 
+                                           'exp5', 'exp6', 'exp7', 'exp8'),
+                                  colnames(maleEx)))
+
+for(i in seq_along(1:dim(maleEx)[2])){
+  for(j in seq_along(1:length(priorList$males))){
+    priorT <- priorList$males[[j]]
+    cmatOut[j, i] <- calcC(maleEx[, i], priorT[, i])
+  }
+}
+
+cmatOut <- transformC(cmatOut)
+
+kmat <- calcK(cmatOut)
+kmat
+```
+
+
+Here I'll simulate a Gibbs loop for males.
+
+```{r maleGibbs}
+ng <- 100
+nregions <- ncol(kmat)
+post <- matrix(0, nregions, nregions)  
+summh <- post 
+for(i in seq_along(1:ng)){
+
+    for(j in seq_along(1:nregions)){
+  
+      idx <- which(rmultinom(1, 1, kmat[, j]) == 1) # chooses the expert
+      prior <- priorList$males[[idx]][, j] # gets prior for that expert
+    
+      di <- matrix(rgamma(nregions * 1, 
+                    shape = maleEx[, j] + prior, 
+                    scale = 1), nregions, 1) 
+
+      post[, j] <- di / matrix(colSums(di), nregions, 1, byrow = T) 
+
+    } 
+  summh <- summh + post
+}
+
+malemovePostprob <- summh / ng
+colnames(malemovePostprob) <- row.names(malemovePostprob) <- colnames(maleEx)
+round(malemovePostprob, 3)
+```
