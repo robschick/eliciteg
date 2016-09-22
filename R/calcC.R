@@ -44,8 +44,8 @@ transformC <- function(cmat, tval = -600){
 #' conjunction with \code{rmultinom()} to choose an expert's prior, $k_i$.
 #'
 calcK <- function(cdat){
-  numexp <- length(unlist(cdat))
-  up <- (1 / numexp) * unlist(cdat)
-  down <- (1 / numexp) * sum(unlist(cdat))
-  up / down
+  numexp <- nrow(cdat)
+  up <- (1 / numexp) * cdat
+  down <- (1 / numexp) * colSums(cdat)
+  sweep(up, 2, down, '/')
 }
