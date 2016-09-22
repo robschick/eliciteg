@@ -48,11 +48,11 @@ colnames(maleExT) <- c("BOF", "GOM", "GSC", "JL", "MIDA")
 For this toy example, we'll assume two experts. Here are their priors:
 
 ```{r makeToyPriors}
-priorT_1 <- matrix(c(7.502, 0.39, 0.39, 0.39, 5.952,
+priorT_1 <- matrix(c(7.502, 0.39, 0.39, 0.39, 3.952,
                        0.144, 0.047, 0.047, 0.047, 0.003,
                        10.144, 0.048, 0.041, 0.047, 0.003,
                        0.144, 0.049, 0.047, 0.047, 0.003,
-                       5, 0.003, 0.003, 0.003, 1.052),
+                       5, 0.003, 0.003, 0.003, 2.52),
                      nrow = 5, ncol = 5, byrow = TRUE)
 
 priorT_2 <- matrix(c(5, 2.394, 1.394, 1.3948, 3.952,
@@ -133,7 +133,7 @@ kmat
 colSums(kmat)
 ```
 
-That output, then, is a matrix where each column is the probability vector (that sums to 1), which we will use to select the expert within the Gibbs loop. For this transition that we're exploring here, Expert 2 is much more likely to be sampled during each step, i.e. their weight is much higher.
+That output, then, is a matrix where each column is the probability vector (that sums to 1), which we will use to select the expert within the Gibbs loop. For this transition that we're exploring here, Expert 2 is much more likely to be sampled during each step, i.e. their weight is much higher. You can also in the MIDA to all region transition, where the priors are almost identical, we'll be sampling from these two experts almost equally.
 
 # Sampling From the Dirichlet
 With the toy example, we'll sample directly from a Dirichlet making use of the `rdirichlet()` function in the `gtools` library. First we can view the prior for each expert:
