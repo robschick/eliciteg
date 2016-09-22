@@ -64,7 +64,7 @@ Note that the rows correspond to the number of experts, while the columns corres
 for(i in seq_along(1:dim(maleExT)[2])){
   for(j in seq_along(1:length(priorList$males))){
     priorT <- priorList$males[[j]][5:9, 5:9]
-    cmatOut[j, i] <- calcC(maleExT[, i], priorT[, i])
+    cmatOut[j, i] <- calcCNew(maleExT[, i], priorT[, i])
   }
 }
 cmatOut
@@ -74,7 +74,7 @@ cmatOut
 Next up is to send the results from `cmatOut` on to `calcK` for processing. I'll still do this for the subset of regions just to make sure things are working. Once done, I can expand outward. The way I did this previously was to loop over a list with `lapply`, which I'll replace with `apply` since I no longer have an input list. And while I can still use the function the output will no longer be a list, so I'll change the name of the output object. The processing logic, then, is to take a column's worth of c-vales, and from them, calculate the `K` values:
 
 ```{r}
-kmat <- apply(cmatOut, 2, function(x) calcK(x))
+kmat <- apply(cmatOut, 1, function(x) calcK(x))
 kmat
 colSums(kmat)
 ```
@@ -146,7 +146,7 @@ cmatOut <- matrix(NA, nrow = length(priorList$males),
 for(i in seq_along(1:dim(maleEx)[2])){ # regions
   for(j in seq_along(1:length(priorList$males))){ #experts
     priorT <- priorList$males[[j]] #jth expert
-    cmatOut[j, i] <- calcC(maleEx[, i], priorT[, i]) #ith region for data; ith region of jth expert for prior
+    cmatOut[j, i] <- calcCNew(maleEx[, i], priorT[, i]) #ith region for data; ith region of jth expert for prior
   }
 }
 ```
@@ -224,5 +224,58 @@ For reference, here are the two functions I'm using:
 calcC
 
 calcK
+```
+
+# Update with New Code
+After discussion of the above issue with M Papathomas, he noted that these problems are basically a numerical issue. Michail proposed a solution that involves adding a scalar to very large negative values in the $C$ matrix, such that we can still preserve the relationships among the experts, but not get NA values when we calculate $K$. 
+
+What I've done, then, is to break up the `calcC` function into two different functions, so that the first one simply calculates the log values:
+
+```{r}
+calcC
+
+```
+
+Then the second one checks for the very large negative values, and if present, transforms the column:
+
+```{r}
+transformC
+```
+
+The logic of this last one is to create a logical vector `tvec` if all values in a column are less than the `tval` threshold. If so, then, we calculate the max value for each of those columns with `apply()`. Then I use `sweep` to add these back into the matrix. Finally after that processing, we return the exponentiated matrix.
+
+Let's try it with the real data
+
+```{r}
+cmatOut <- matrix(NA, nrow = length(priorList$males), 
+                  ncol = dim(maleEx)[2],
+                  dimnames = list(c('exp1', 'exp2', 'exp3', 'exp4', 
+                                    'exp5', 'exp6', 'exp7', 'exp8'),
+                                  colnames(maleEx)))
+
+```
+
+```{r}
+for(i in seq_along(1:dim(maleEx)[2])){ # regions
+  for(j in seq_along(1:length(priorList$males))){ #experts
+    priorT <- priorList$males[[j]] #jth expert
+    cmatOut[j, i] <- calcC(maleEx[, i], priorT[, i]) #ith region for data; ith region of jth expert for prior
+  }
+}
+cmatOut
+```
+
+And then we transform it:
+
+```{r}
+transformC(cmatOut)
+cmatOut <- transformC(cmatOut)
+```
+
+Which should leave us with something we can work with when we calculate $K$:
+```{r}
+kmat <- apply(cmatOut, 1, function(x) calcK(x))
+kmat
+colSums(kmat)
 ```
 
