@@ -30,8 +30,8 @@ transformC <- function(cmat, tval = -600){
 
   if(any(tvec)){
 
-    cfudge <- -apply(cmat[, tvec], 2, max)
-    cmat[, tvec] <- sweep(cmat[, tvec], 2, cfudge, FUN = '+')
+    cfudge <- -apply(cmat[, tvec, drop = FALSE], 2, max)
+    cmat[, tvec] <- sweep(cmat[, tvec, drop = FALSE], 2, cfudge, FUN = '+')
 
   }
   return(exp(cmat))
