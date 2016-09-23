@@ -91,17 +91,26 @@ cmatOut
 
 This looks fine, but you'll note quite large (negative) values for GOM. In situtations where the values in `cmatOut` get very big and negative, taking the exponent yields 0 values, which we can't have in this algorithm. 
 
-The solution Michail came up with is to add some numerical padding to all experts' values in the instances where one expert has a very negative value. This preserves the relationships among experts, while keeping things tractable numerically. Here's the solution in the form of a new function:
+The solution Michail came up with is to add some numerical padding to all experts' values in the instances where one expert has a very negative value. This preserves the relationships among experts, while keeping things tractable numerically. 
+
+Here's the solution in the form of a new function:
 
 ```{r}
 transformC
 ```
 
+The processing logic in the function is to:
+
+1. iterate across columns, and test if any values are smaller than a threshold (default is -600)
+2. if any are true, then to calculate the numerical value to add; this value is the largest in the column
+3. use `sweep` to add those column-wise to the matrix
+4. return the exponent of the matrix
+
 In use:
 
 ```{r}
-cmatOut <- transformC(cmatOut, tval = -600)
-cmatOut
+cmatOutexp <- transformC(cmatOut, tval = -600)
+cmatOutexp
 ```
 
 
@@ -128,43 +137,49 @@ calcK
 In use:
 
 ```{r}
-kmat <- calcK(cmatOut)
+kmat <- calcK(cmatOutexp)
 kmat
 colSums(kmat)
 ```
 
-That output, then, is a matrix where each column is the probability vector (that sums to 1), which we will use to select the expert within the Gibbs loop. For this transition that we're exploring here, Expert 2 is much more likely to be sampled during each step, i.e. their weight is much higher. You can also in the MIDA to all region transition, where the priors are almost identical, we'll be sampling from these two experts almost equally.
+```{r, echo=FALSE}
+cmatOutexpSim <- cmatOutexp
+cmatSim <- cmatOut
+kmatSim <- kmat
+priorTsim <- priorT
+```
+
+That output, then, is a matrix where each column is the probability vector (that sums to 1), which we will use to select the expert within the Gibbs loop. For this transition that we're exploring here, Expert 2 is much more likely to be sampled during each step, i.e. their weight is much higher. You can also see in the from MIDA to all regions transition, where the priors are almost identical, we'll be sampling from these two experts almost equally.
 
 # Sampling From the Dirichlet
 With the toy example, we'll sample directly from a Dirichlet making use of the `rdirichlet()` function in the `gtools` library. First we can view the prior for each expert:
 
 ## Priors
-Let's see how our experts stack up for the prior for the first region: Bay of Fundy (BOF). First we sample them
+Let's see how our experts stack up for the prior for the first region: Bay of Fundy (BOF). First we sample them to create the mixture prior
 
 ```{r}
 i <- 1 # the region where we assume a whale is present
 library(gtools)
-pr1dirsample <- pr2dirsample <- matrix(NA, nrow = 1000, ncol = nreg + 1)
+prdirsample <- matrix(NA, nrow = 1000, ncol = nreg)
 for (ig in 1:1000) {
-    
-  pr1dirsample[ig, 1:nreg] <- rdirichlet(1, priorT[, i, 1]) 
-  pr2dirsample[ig, 1:nreg] <- rdirichlet(1, priorT[, i, 2])
+  
+  idx <- which(rmultinom(1, 1, kmat[, i]) == 1)
+  prior <- priorT[, i, idx]
+  prdirsample[ig, ] <- rdirichlet(1, prior)
   
 }
-pr1dirsample[, (nreg + 1)] <- 1
-pr2dirsample[, (nreg + 1)] <- 2
-prdirsample <- rbind(pr1dirsample, pr2dirsample)
-colnames(prdirsample) <- c(colnames(kmat), 'expert')
+
+colnames(prdirsample) <- c(colnames(kmat))
 ```
 
 And then we can plot those:
 ```{r fig.height=4, echo=FALSE}
 library(ggplot2)
 library(reshape2)
-xlp <- melt(as.data.frame(prdirsample), id = 6)
+xlp <- melt(as.data.frame(prdirsample))
 
 # draw the histograms
-ggplot(data = xlp, aes(x = value, colour = factor(expert)))+
+ggplot(data = xlp, aes(x = value))+
   geom_density()+
   facet_wrap(~variable, nrow = 1)+
   xlim(0, 1)+
@@ -172,7 +187,7 @@ ggplot(data = xlp, aes(x = value, colour = factor(expert)))+
 
 ```
 
-What this shows is that while both experts were somewhat strong in their prior belief, expert 2's belief was uniform, i.e. she thought it equally likely that whales would transition to any of the 5 regions. For the BOF to MIDA transition, both experts had very similar priors.
+What this shows is that overwhelmingly, expert 2's prior was chosen, which makes sense looking at $k_1$, which was ```r kmat[, 1]```. Expert 2's belief was uniform, i.e. she thought it equally likely that whales would transition to any of the 5 regions. 
 
 ## Posteriors
 And then we can move on to the posterior
@@ -187,32 +202,30 @@ for (ig in 1:1000) {
 }
 ```
 
-And then we can plot the posterior (black line) and include the priors (coloured lines):
+And then we can plot the posterior (black line) and include the prior (blue lines):
 ```{r fig.height=4, echo=FALSE}
 colnames(postdirsample) <- colnames(kmat)
 xl <- melt(postdirsample)
-colnames(xlp) <- c('expert', 'Var2',     'value')
+colnames(xlp) <- c('Var2',     'value')
 # draw the histograms
 ggplot(data = xl, aes(x = value, group = Var2))+
-  geom_density(lwd = 1.5)+
-  geom_density(data = subset(xlp, expert == 1), aes(x = value, colour = 'red'))+
-  geom_density(data = subset(xlp, expert == 2), aes(x = value, colour = 'blue'))+
+  geom_density(lwd = 1)+
+  geom_density(data = xlp, aes(x = value), colour = 'blue')+
   facet_wrap(~Var2, nrow = 1)+
   xlim(0, 1)+
-  ylim(0, 10)+
-  scale_color_discrete(labels = c('Expert 1', 'Expert 2'))+
-  labs(colour = 'Expert')
+  ylim(0, 10)
 
 ```
 
-Recall that the data for this region was: ```r maleExT[, 1]```
+Recall that the data for this region was: ```r maleExT[, 1]```. So we're essentially just getting the data back since we're adding the same prior for each region.
 
 # Real Data
-Ok, that seems to work with a toy data example for one region. Let's try it with a full 9 * 9 data matrix. Again, we won't use multiple imputation here, though we will in the paper. This is just to see it in action. Note that where above we sampled directly from the Dirichlet, here we'll use a slightly different algorithm. 
+Since that seems to work with a toy data example for one region, let's try it with a full 9 * 9 data matrix. Again, we won't use multiple imputation here, though we will in the paper; This is just to see it in action. Note that where above we sampled directly from the Dirichlet, here we'll use a slightly different algorithm (though n.b. if you look at the internals of `rdirichlet`, you'll see it's the same sampling logic).
 
-We'll remake the two supporting matrices, though not show the code, as it's identical to above (save for the dimensions).
+## Males
+We'll remake the two supporting matrices (actually I'll print 3 out: 1) `cmat` with logc values; 2) `cmat` after transforming it; and 3) `kmat`). I won't show the code, as it's identical to above (save for the dimensions).
 
-```{r realCandK, echo=FALSE}
+```{r realCandKMales, echo=FALSE}
 data(moveData)
 cmatOut <- matrix(NA, nrow = length(priorList$males), 
                   ncol = dim(maleEx)[2],
@@ -226,11 +239,11 @@ for(i in seq_along(1:dim(maleEx)[2])){
     cmatOut[j, i] <- calcC(maleEx[, i], priorT[, i])
   }
 }
-
-cmatOut <- transformC(cmatOut)
-
-kmat <- calcK(cmatOut)
-kmat
+round(cmatOut, 2)
+cmatOutexp <- transformC(cmatOut)
+cmatOutexp
+kmat <- calcK(cmatOutexp)
+round(kmat, 2)
 ```
 
 
@@ -262,3 +275,127 @@ malemovePostprob <- summh / ng
 colnames(malemovePostprob) <- row.names(malemovePostprob) <- colnames(maleEx)
 round(malemovePostprob, 3)
 ```
+
+## Females
+As with males, we'll remake the two (err...3) supporting matrices as above.
+
+```{r realCandKFemales, echo=FALSE}
+data(moveData)
+cmatOut <- matrix(NA, nrow = length(priorList$females), 
+                  ncol = dim(femEx)[2],
+                  dimnames = list(c('exp1', 'exp2', 'exp3', 'exp4', 
+                                           'exp5', 'exp6', 'exp7', 'exp8'),
+                                  colnames(femEx)))
+
+for(i in seq_along(1:dim(femEx)[2])){
+  for(j in seq_along(1:length(priorList$females))){
+    priorT <- priorList$females[[j]]
+    cmatOut[j, i] <- calcC(femEx[, i], priorT[, i])
+  }
+}
+
+round(cmatOut, 2)
+cmatOutexp <- transformC(cmatOut)
+cmatOutexp
+kmat <- calcK(cmatOutexp)
+round(kmat, 2)
+```
+
+
+Here I'll simulate a Gibbs loop for females.
+
+```{r femaleGibbs}
+ng <- 100
+nregions <- ncol(kmat)
+post <- matrix(0, nregions, nregions)  
+sumfh <- post 
+for(i in seq_along(1:ng)){
+
+    for(j in seq_along(1:nregions)){
+  
+      idx <- which(rmultinom(1, 1, kmat[, j]) == 1) # chooses the expert
+      prior <- priorList$females[[idx]][, j] # gets prior for that expert
+    
+      di <- matrix(rgamma(nregions * 1, 
+                    shape = femEx[, j] + prior, 
+                    scale = 1), nregions, 1) 
+
+      post[, j] <- di / matrix(colSums(di), nregions, 1, byrow = T) 
+
+    } 
+  sumfh <- sumfh + post
+}
+
+femalemovePostprob <- sumfh / ng
+colnames(femalemovePostprob) <- row.names(femalemovePostprob) <- colnames(femEx)
+round(femalemovePostprob, 3)
+```
+
+# Appendix - Comparing Two Methods
+The code above is mostly written by me (rob), and this section will compare it against code written by Michail. If `kmat` agree using the same input data, then we should be confident about the methods. I saved the initial data, priors, and matrices to objects with new names for comparison:
+
+1. `cmatOutexpSim`
+2. `cmatSim`
+3. `kmatSim`
+4. `priorTsim`
+
+Now we'll use Michail's code to re-create the matrices.
+
+```{r michailSim}
+k <- matrix(NA, nrow = nreg, ncol = 2) 
+# nreg for the number of regions where whales are assumed present in turn
+# 2 for the 2 experts
+matnames <- list(c(colnames(kmatSim)), c(row.names(kmatSim)))
+logc_pr <- matrix(NA, nrow = nreg, ncol = 2, dimnames = matnames)
+logc_pos <- matrix(NA, nrow = nreg, ncol = 2, dimnames = matnames)
+logc <- matrix(NA, nrow = nreg, ncol = 2, dimnames = matnames)
+cmat <- matrix(NA, nrow = nreg, ncol = 2, dimnames = matnames)
+kpost <- matrix(NA, nrow = nreg, ncol = 2, dimnames = matnames)
+
+for (i in 1:nreg){# nreg for the # of regions where we will assume a whale is currently present
+  for (ex in 1:2){ # as many experts as you have
+    k[i, ex] <- 0.5
+    logc_pr[i, ex] <- lgamma(sum(priorTsim[, i, ex])) - sum(lgamma(priorTsim[, i, ex]))
+    logc_pos[i, ex] <- lgamma(sum(priorTsim[, i, ex] + maleExT[, i])) - sum(lgamma(priorTsim[, i, ex] + maleExT[, i]))
+    logc[i, ex] <- logc_pr[i, ex] - logc_pos[i, ex]
+    cmat[i, ex] <- exp(logc[i, ex])
+  }
+  if (logc[i, 1] < -600 & logc[i, 2] < -600){
+    addforc <- -max(logc[i, 1], logc[i, 2])
+    kpost[i, 1] <- k[i, 1] * exp(logc[i, 1] + addforc) / (k[i, 1] * exp(logc[i, 1] + addforc) + k[i, 2] * exp(logc[i, 2] + addforc))# sum for 2 exp. in denom.
+    kpost[i, 2] <- k[i, 2] * exp(logc[i, 2] + addforc) / (k[i, 1] * exp(logc[i, 1] + addforc) + k[i, 2] * exp(logc[i, 2] + addforc))
+  } else {
+  kpost[i, 1] <- k[i, 1] * cmat[i, 1] / (k[i, 1] * cmat[i, 1] + k[i, 2] * cmat[i, 2]) # sum for 2 experts in denominator
+  kpost[i, 2] <- k[i, 2] * cmat[i, 2] / (k[i, 1] * cmat[i, 1] + k[i, 2] * cmat[i, 2])
+  }
+}
+```
+
+Let's view the output(s) side by side:
+
+## the raw c values
+
+```{r, echo=TRUE}
+logc
+t(cmatSim)
+all.equal(logc, t(cmatSim))
+```
+
+## The transformed c values
+
+```{r}
+cmat
+t(cmatOutexpSim)
+all.equal(cmat, t(cmatOutexpSim))
+```
+
+Note that these aren't equal for the one region that has to be adjusted (in this case it's GOM). This is because in Michail's code, he does the adjusting in the loop to create `kpost`, whereas in my code I send the whole transformed matrix (`cmatOutexpSim`) to the `calcK` function. 
+
+## The k values
+
+```{r, echo=TRUE}
+kpost
+t(kmatSim)
+all.equal(kpost, t(kmatSim))
+```
+So we can rest assured that the algorithm is working, and can proceed with the main sampling.
