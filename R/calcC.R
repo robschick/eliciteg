@@ -45,7 +45,8 @@ transformC <- function(cmat, tval = -600){
 #'
 calcK <- function(cdat){
   numexp <- nrow(cdat)
-  up <- (1 / numexp) * cdat
-  down <- (1 / numexp) * colSums(cdat)
+  kprior <- 1 / numexp
+  up <- kprior * cdat
+  down <- kprior * colSums(cdat)
   sweep(up, 2, down, '/')
 }
