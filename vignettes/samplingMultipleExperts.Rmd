@@ -128,7 +128,9 @@ $$k_j^{(1)} = \frac{k_j^{(0)} C_j}{\sum_{i=1}^J k_j^{(0)} C_j} .$$
 
 To sample, you choose a component distribution $j$with probability $k_j^{(0)}$. We then sample from $f_j^{(1)} (\pi) = Dir \left( d^{(0)}_{j1} + n_1, \ldots, d^{(0)}_{jM} + n_M\right )$, assuming our data are $(n_1, \ldots, n_M)$.
 
-Our function to assemble this matrix is `calck`. _a priori_ the prior weights for $K$ are equal to 1 / the number of experts, i.e. we give them equal weight. `calcK` returns the posterior weights for the experts.
+Our function to assemble this matrix is `calck`. _A priori_ the prior weights for $K$ are equal to `1 / (# of experts)`, i.e. we give them equal weight. `calcK` returns the posterior weights for the experts. 
+
+Note that above we have the prior represented as $k_j^{(0)}$, which in our algorithm will always be equal to `1 / (# of experts)`. That is, we'll be giving each expert equal weight. In the `calcK` function $k_j^{(0)}$ is represented as `kprior`. What we return from this function is $k_j^{(1)}$, i.e. the posterior weights.
 
 ```{r}
 calcK
