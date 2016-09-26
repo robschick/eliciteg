@@ -106,7 +106,7 @@ The processing logic in the function is to:
 3. use `sweep` to add those column-wise to the matrix
 4. return the exponent of the matrix
 
-In use:
+In use, the function produces this output:
 
 ```{r}
 cmatOutexp <- transformC(cmatOut, tval = -600)
@@ -128,7 +128,7 @@ $$k_j^{(1)} = \frac{k_j^{(0)} C_j}{\sum_{i=1}^J k_j^{(0)} C_j} .$$
 
 To sample, you choose a component distribution $j$with probability $k_j^{(0)}$. We then sample from $f_j^{(1)} (\pi) = Dir \left( d^{(0)}_{j1} + n_1, \ldots, d^{(0)}_{jM} + n_M\right )$, assuming our data are $(n_1, \ldots, n_M)$.
 
-Our function to assemble this matrix is:
+Our function to assemble this matrix is `calck`. _a priori_ the prior weights for $K$ are equal to 1 / the number of experts, i.e. we give them equal weight. `calcK` returns the posterior weights for the experts.
 
 ```{r}
 calcK
@@ -143,6 +143,7 @@ colSums(kmat)
 ```
 
 ```{r, echo=FALSE}
+# this block is to save these objects for later comparison to the outputs from Michail's code
 cmatOutexpSim <- cmatOutexp
 cmatSim <- cmatOut
 kmatSim <- kmat
@@ -162,8 +163,9 @@ i <- 1 # the region where we assume a whale is present
 library(gtools)
 prdirsample <- matrix(NA, nrow = 1000, ncol = nreg)
 for (ig in 1:1000) {
-  
-  idx <- which(rmultinom(1, 1, kmat[, i]) == 1)
+  numexp <- nrow(kmat)
+  k <- rep(1 / numexp, numexp)
+  idx <- which(rmultinom(1, 1, k) == 1)
   prior <- priorT[, i, idx]
   prdirsample[ig, ] <- rdirichlet(1, prior)
   
@@ -172,7 +174,8 @@ for (ig in 1:1000) {
 colnames(prdirsample) <- c(colnames(kmat))
 ```
 
-And then we can plot those:
+And then we can plot those to see the mixture prior distribution:
+
 ```{r fig.height=4, echo=FALSE}
 library(ggplot2)
 library(reshape2)
@@ -187,7 +190,7 @@ ggplot(data = xlp, aes(x = value))+
 
 ```
 
-What this shows is that overwhelmingly, expert 2's prior was chosen, which makes sense looking at $k_1$, which was ```r kmat[, 1]```. Expert 2's belief was uniform, i.e. she thought it equally likely that whales would transition to any of the 5 regions. 
+
 
 ## Posteriors
 And then we can move on to the posterior
@@ -217,7 +220,7 @@ ggplot(data = xl, aes(x = value, group = Var2))+
 
 ```
 
-Recall that the data for this region was: ```r maleExT[, 1]```. So we're essentially just getting the data back since we're adding the same prior for each region.
+Recall that the data for this region was: ```r maleExT[, 1]```. So we're essentially just getting the data back since we're adding the same prior for each region. We say _essentially_, because while the means would be the same the variance for $D(1, 1, 1, 1, 1)$ is different than $D(5, 5, 5, 5, 5)$.
 
 # Real Data
 Since that seems to work with a toy data example for one region, let's try it with a full 9 * 9 data matrix. Again, we won't use multiple imputation here, though we will in the paper; This is just to see it in action. Note that where above we sampled directly from the Dirichlet, here we'll use a slightly different algorithm (though n.b. if you look at the internals of `rdirichlet`, you'll see it's the same sampling logic).
