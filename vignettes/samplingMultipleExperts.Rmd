@@ -337,7 +337,7 @@ round(femalemovePostprob, 3)
 ```
 
 # Appendix - Comparing Two Methods
-The code above is mostly written by me (rob), and this section will compare it against code written by Michail. If `kmat` agree using the same input data, then we should be confident about the methods. I saved the initial data, priors, and matrices to objects with new names for comparison:
+The code above is mostly written by me (Rob), and this section will compare it against code written by Michail. If `kmat` agree using the same input data, then we should be confident about the methods. I saved the initial data, priors, and matrices to objects with new names for comparison:
 
 1. `cmatOutexpSim`
 2. `cmatSim`
